@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tool Hub</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: #f3f4f6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 700px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 42px;
+    }
+
+    p {
+      text-align: center;
+      color: #9ca3af;
+      margin-bottom: 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 14px;
+      padding: 24px;
+      text-decoration: none;
+      color: #f3f4f6;
+      transition: 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #60a5fa;
+      background: #263244;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 22px;
+    }
+
+    .card p {
+      margin: 0;
+      text-align: left;
+      color: #9ca3af;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Tool Hub</h1>
+    <p>Quick access to internal tools and utilities.</p>
+
+    <div class="grid">
+
+      <a class="card" href="/configGenerator/">
+        <h2>Config Generator</h2>
+        <p>Create and manage configuration files quickly.</p>
+      </a>
+
+      <a class="card" href="/csr/">
+        <h2>CSR Generator</h2>
+        <p>Generate SSL CSRs and private key commands.</p>
+      </a>
+
+      <a class="card" href="/sqlgen/">
+        <h2>SQL Generator</h2>
+        <p>Generate SQL queries and snippets visually.</p>
+      </a>
+      
+       <a class="card" href="/familytree/">
+        <h2>Family Tree</h2>
+        <p>Interactive family tree builder and editor.</p>
+      </a>
+
+     <a class="card" href="/familytree_public/">
+        <h2>Family Tree</h2>
+        <p>Public version of interactive family tree builder and editor .</p>
+      </a>
+
+    </div>
+
+    <footer>
+      © 2026 Tool Hub
+    </footer>
+  </div>
+
+</body>
+</html>

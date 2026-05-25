@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Family Tree Research</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sb:#f8f3eb;--sbb:#e0d3bb;--ac:#4a3728;--ach:#6b4f3a;
+  --tx:#2d1f14;--mu:#7d6548;--ib:#cfc1a6;--canvas:#f5f0e8;
+}
+body{font-family:'Nunito',sans-serif;display:flex;height:100vh;overflow:hidden;background:#1e1e1e;color:var(--tx)}
+
+/* ── SIDEBAR ── */
+#sidebar{width:290px;min-width:290px;background:var(--sb);border-right:2px solid var(--sbb);display:flex;flex-direction:column;z-index:100;box-shadow:4px 0 24px rgba(0,0,0,.3)}
+.sbh{padding:16px 16px 12px;background:var(--ac);color:#fdf8f0;flex-shrink:0}
+.sbh h1{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600}
+.sbh .sub{font-size:11px;opacity:.55;margin-top:2px}
+.conn-status{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11.5px;font-weight:600}
+.conn-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#6b7280;transition:background .4s}
+.conn-dot.ok{background:#22c55e}.conn-dot.err{background:#ef4444}.conn-dot.wait{background:#f59e0b}
+.sb-scroll{flex:1;overflow-y:auto;padding:12px}
+.sb-scroll::-webkit-scrollbar{width:4px}.sb-scroll::-webkit-scrollbar-thumb{background:var(--sbb);border-radius:2px}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 0;user-select:none}
+.sec-hdr .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu)}
+.sec-hdr .arr{font-size:10px;color:var(--mu);transition:transform .2s}
+.sec-hdr.open .arr{transform:rotate(90deg)}
+.sec-body{overflow:hidden;transition:max-height .25s ease}
+.sec-body.closed{max-height:0!important}
+.sb-dv{border:none;border-top:1px solid var(--sbb);margin:8px 0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.rlbl{font-size:12.5px;color:var(--tx);display:flex;align-items:center;gap:6px;flex:1}
+input[type=color]{width:34px;height:26px;border:1.5px solid var(--ib);border-radius:6px;cursor:pointer;padding:2px;background:#fff}
+input[type=number]{width:72px;padding:4px 8px;border:1.5px solid var(--ib);border-radius:6px;font-size:12px;font-family:'Nunito',sans-serif;color:var(--tx);background:#fff;outline:none}
+input[type=number]:focus{border-color:var(--ac)}
+.tog{position:relative;width:34px;height:18px;cursor:pointer;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0;position:absolute}
+.tog-track{position:absolute;inset:0;background:#ccc;border-radius:9px;transition:background .2s}
+.tog input:checked+.tog-track{background:var(--ac)}
+.tog-thumb{position:absolute;left:2px;top:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tog input:checked~.tog-thumb{left:18px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+.toggle-lbl{font-size:12.5px;color:var(--tx)}
+.btn-p{width:100%;padding:9px 12px;background:var(--ac);color:#fdf8f0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .18s;margin-bottom:6px}
+.btn-p:hover{background:var(--ach)}
+.btn-o{width:100%;padding:8px 12px;background:transparent;color:var(--ac);border:2px solid var(--ac);border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .18s;margin-bottom:6px}
+.btn-o:hover{background:var(--ac);color:#fdf8f0}
+.btn-sm{padding:5px 9px;font-size:12px;border:1.5px solid var(--ib);background:#fff;border-radius:6px;cursor:pointer;font-family:'Nunito',sans-serif;color:var(--tx);transition:all .13s}
+.btn-sm:hover{background:#f0ebe0}
+.exp-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.bexp{padding:8px;border:none;border-radius:7px;font-family:'Nunito',sans-serif;font-size:11.5px;font-weight:700;cursor:pointer;color:#fff}
+.epng{background:#3a6b4a}.epng:hover{background:#4c8860}
+.epdf{background:#b5451b}.epdf:hover{background:#d45520}
+.unassigned-item{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--ib);border-radius:7px;padding:6px 9px;margin-bottom:5px;font-size:12.5px}
+.unassigned-item .uname{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unassigned-item .ubirth{font-size:11px;color:var(--mu);flex-shrink:0}
+
+/* ── CANVAS ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#cwrap{flex:1;overflow:auto;position:relative}
+#cinner{position:relative;background:var(--canvas)}
+#lsvg{position:absolute;top:0;left:0;pointer-events:none;z-index:1}
+#lsvg .hit{pointer-events:stroke;cursor:pointer}
+#gen-svg{position:absolute;top:0;left:0;pointer-events:none;z-index:0}
+
+/* ── PERSON CARDS ── */
+.pc{position:absolute;background:#fff;border-radius:10px;border-left:4px solid #94a3b8;min-width:168px;max-width:220px;cursor:grab;user-select:none;z-index:10;box-shadow:0 2px 12px rgba(0,0,0,.1),0 1px 3px rgba(0,0,0,.06);overflow:hidden;transition:box-shadow .15s}
+.pc:hover{box-shadow:0 6px 20px rgba(0,0,0,.17)}
+.pc.dragging{cursor:grabbing;box-shadow:0 14px 40px rgba(0,0,0,.26);z-index:50}
+.pc.hi-src{outline:3px solid #f59e0b}
+.pc.hi-tgt{outline:3px solid #22c55e;cursor:crosshair!important}
+.pc-top{padding:10px 12px 0}
+.pc-name{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#1a1a1a;line-height:1.25;word-break:break-word}
+.pc-maiden{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:#888;margin-top:1px}
+.pc-attrs{padding:4px 12px 6px;display:flex;flex-direction:column;gap:2px}
+.pc-attr{font-size:11.5px;color:#555;line-height:1.4;display:flex;gap:5px;align-items:flex-start}
+.pc-attr .ai{flex-shrink:0;font-size:11px;opacity:.7}
+.pc-attr .av{flex:1;word-break:break-word}
+.pc-attr b{color:#333}
+.pc-acts{display:flex;gap:2px;padding:7px 8px;border-top:1px solid #f0ebe0;flex-wrap:wrap}
+.pcb{padding:3px 5px;font-size:12px;border:1px solid #e0d8cc;background:#fafaf8;border-radius:5px;cursor:pointer;color:#666;line-height:1;transition:all .12s}
+.pcb:hover{background:#f0ebe0;border-color:#ccc;color:#333}
+.pcb-wed{border-color:#bfdbfe;color:#1d4ed8}.pcb-wed:hover{background:#eff6ff}
+.pcb-unw{border-color:#e9d5ff;color:#7c3aed}.pcb-unw:hover{background:#f5f3ff}
+.pcb-par{border-color:#bbf7d0;color:#15803d}.pcb-par:hover{background:#f0fdf4}
+.pcb-del{border-color:#fecaca;color:#dc2626}.pcb-del:hover{background:#fef2f2}
+
+/* ── MODALS ── */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.mov.on{display:flex}
+.mdl{background:var(--sb);border-radius:16px;width:520px;max-width:96vw;box-shadow:0 28px 80px rgba(0,0,0,.4);animation:mIn .2s ease;max-height:92vh;display:flex;flex-direction:column}
+@keyframes mIn{from{opacity:0;transform:translateY(-14px) scale(.97)}to{opacity:1;transform:none}}
+.mdl-hdr{padding:22px 24px 0;flex-shrink:0}
+.mdl-hdr h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--tx)}
+.mdl-hdr p{font-size:12px;color:var(--mu);margin-top:3px}
+.mdl-body{padding:16px 24px;overflow-y:auto;flex:1}
+.mdl-body::-webkit-scrollbar{width:4px}.mdl-body::-webkit-scrollbar-thumb{background:var(--sbb);border-radius:2px}
+.mdl-foot{padding:14px 24px;border-top:1px solid var(--sbb);display:flex;gap:8px;flex-shrink:0}
+.tab-nav{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--sbb);padding-bottom:0}
+.tab-btn{padding:7px 14px;font-size:12.5px;font-weight:700;font-family:'Nunito',sans-serif;border:none;background:none;cursor:pointer;color:var(--mu);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s}
+.tab-btn.active{color:var(--ac);border-bottom-color:var(--ac)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.mf{margin-bottom:12px}
+.mf>label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mu);margin-bottom:4px}
+.mf input,.mf select,.mf textarea{width:100%;padding:8px 12px;border:1.5px solid var(--ib);border-radius:9px;font-size:14px;font-family:'Nunito',sans-serif;background:#fff;color:var(--tx);outline:none;transition:border-color .15s}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--ac)}
+.mf textarea{resize:vertical;min-height:70px;line-height:1.5}
+.mf-hint{font-size:11px;color:var(--mu);margin-top:3px}
+.mf-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.color-row{display:flex;gap:8px;align-items:center}
+.color-row input[type=color]{flex-shrink:0}
+.color-row input[type=text]{flex:1;padding:8px 12px;border:1.5px solid var(--ib);border-radius:9px;font-size:14px;font-family:'Nunito',sans-serif;background:#fff;color:var(--tx);outline:none}
+.color-row input[type=text]:focus{border-color:var(--ac)}
+.btn-save{flex:1;padding:9px;background:var(--ac);color:#fdf8f0;border:none;border-radius:9px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:background .18s}
+.btn-save:hover{background:var(--ach)}
+.btn-cnl{padding:9px 16px;background:#fff;color:var(--tx);border:1.5px solid var(--ib);border-radius:9px;font-family:'Nunito',sans-serif;font-size:14px;cursor:pointer;transition:background .15s}
+.btn-cnl:hover{background:#f0ebe0}
+.btn-dng{padding:9px 14px;background:#fef2f2;color:#dc2626;border:1.5px solid #fecaca;border-radius:9px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+.btn-dng:hover{background:#fee2e2}
+.cinfo{font-size:13px;color:var(--ac);font-weight:700;margin-bottom:12px;padding:8px 12px;background:#f0ebe0;border-radius:8px}
+.child-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;background:#fff;border:1px solid var(--ib);border-radius:7px;margin-bottom:4px;font-size:13px}
+.child-rm{background:none;border:none;color:#dc2626;font-size:15px;cursor:pointer;padding:0 2px}
+.btn-add-child{width:100%;padding:7px;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:7px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:6px}
+.btn-add-child:hover{background:#dcfce7}
+/* Setup */
+.setup-box{background:#f0ebe0;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12.5px;color:var(--mu);line-height:2}
+.setup-box b{color:var(--tx)}
+
+/* ── BANNER & TOAST ── */
+#banner{display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:24px;font-size:13px;font-weight:700;z-index:600;align-items:center;gap:14px;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.35)}
+#banner.on{display:flex}
+.bn-wed{background:#1d4ed8;color:#fff}.bn-unw{background:#6d28d9;color:#fff}
+.bn-par{background:#15803d;color:#fff}.bn-child{background:#b45309;color:#fff}
+#bcx{background:rgba(255,255,255,.22);border:none;color:#fff;padding:3px 13px;border-radius:14px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700}
+#bcx:hover{background:rgba(255,255,255,.38)}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,.9);color:#f5f5f5;padding:9px 24px;border-radius:24px;font-size:13px;font-weight:600;pointer-events:none;opacity:0;transition:opacity .3s;z-index:800}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ══ SIDEBAR ══ -->
+<div id="sidebar">
+  <div class="sbh">
+    <h1>🌳 Family Tree Research</h1>
+    <div class="sub">MariaDB · PHP · Live sync</div>
+    <div class="conn-status">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-lbl">Connecting…</span>
+    </div>
+  </div>
+  <div class="sb-scroll">
+
+    <div style="padding:4px 0 4px">
+      <button class="btn-p" onclick="openAddPerson()">＋ Add Person</button>
+      <button class="btn-o" onclick="showModal('setup-ov')">⚙ API Settings</button>
+    </div>
+
+    <hr class="sb-dv">
+
+    <!-- Attribute Toggles -->
+    <div class="sec-hdr open" onclick="toggleSec(this)"><span class="lbl">Card Attributes</span><span class="arr">▶</span></div>
+    <div class="sec-body" style="max-height:500px"><div id="attr-toggles"></div></div>
+
+    <hr class="sb-dv">
+
+    <!-- Visual Settings -->
+    <div class="sec-hdr open" onclick="toggleSec(this)"><span class="lbl">Visual Settings</span><span class="arr">▶</span></div>
+    <div class="sec-body" style="max-height:400px">
+      <div class="toggle-row">
+        <span class="toggle-lbl">Generation grid</span>
+        <label class="tog"><input type="checkbox" id="grid-tog" onchange="applyGrid()"><div class="tog-track"></div><div class="tog-thumb"></div></label>
+      </div>
+      <div id="grid-opts" style="display:none;padding-top:4px">
+        <div class="row"><span class="rlbl">Row height (px)</span>
+          <input type="number" id="grid-h" value="220" min="80" max="600" step="20" onchange="applyGrid()">
+        </div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <span class="rlbl">Child line color</span>
+        <input type="color" id="child-col" value="#16a34a" oninput="applyChildColor()">
+      </div>
+      <div class="row">
+        <span class="rlbl">Canvas background</span>
+        <input type="color" id="canvas-bg" value="#f5f0e8" oninput="applyCanvasBg()">
+      </div>
+      <div class="row">
+        <span class="rlbl">Canvas width (px)</span>
+        <input type="number" id="cw" value="3000" min="1000" max="10000" step="200" onchange="applyCanvasSize()">
+      </div>
+      <div class="row">
+        <span class="rlbl">Canvas height (px)</span>
+        <input type="number" id="ch" value="2200" min="800" max="10000" step="200" onchange="applyCanvasSize()">
+      </div>
+    </div>
+
+    <hr class="sb-dv">
+
+    <!-- Unassigned -->
+    <div class="sec-hdr open" onclick="toggleSec(this)">
+      <span class="lbl">Unassigned <span id="unassigned-count" style="font-size:10px;background:var(--ac);color:#fff;padding:1px 6px;border-radius:8px;margin-left:4px">0</span></span>
+      <span class="arr">▶</span>
+    </div>
+    <div class="sec-body" style="max-height:280px"><div id="unassigned-list"></div></div>
+
+    <hr class="sb-dv">
+
+    <!-- Export -->
+    <div class="sec-hdr" onclick="toggleSec(this)"><span class="lbl">Export</span><span class="arr">▶</span></div>
+    <div class="sec-body closed" style="max-height:100px">
+      <div class="exp-row" style="padding-top:6px">
+        <button class="bexp epng" onclick="exportPNG()">🖼 PNG</button>
+        <button class="bexp epdf" onclick="exportPDF()">📄 PDF</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ CANVAS ══ -->
+<div id="main">
+  <div id="cwrap">
+    <div id="cinner">
+      <svg id="gen-svg"></svg>
+      <svg id="lsvg"></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BANNER & TOAST ══ -->
+<div id="banner"><span id="btxt"></span><button id="bcx" onclick="cancelConnect()">Cancel (Esc)</button></div>
+<div id="toast"></div>
+
+<!-- ══ SETUP MODAL ══ -->
+<div id="setup-ov" class="mov" onclick="ovClose(event,'setup-ov')">
+  <div class="mdl" style="width:460px">
+    <div class="mdl-hdr"><h2>API Settings</h2><p>Configure connection to your PHP backend</p></div>
+    <div class="mdl-body">
+      <div class="setup-box">
+        <b>Setup checklist:</b><br>
+        1. Run <b>family-tree-schema.sql</b> in phpMyAdmin → SQL<br>
+        2. Edit <b>api.php</b> — set DB_HOST, DB_NAME, DB_USER, DB_PASS<br>
+        3. Upload both files to the same folder as this HTML<br>
+        4. If you set <b>API_KEY</b> in api.php, enter it below
+      </div>
+      <div class="mf"><label>API URL</label>
+        <input type="text" id="cfg-url" value="./api.php" placeholder="./api.php or https://…/api.php">
+        <div class="mf-hint">Path to api.php — usually <b>./api.php</b> if in same folder</div>
+      </div>
+      <div class="mf"><label>API Key <span style="font-weight:400;text-transform:none;font-size:11px">(leave empty if not set in api.php)</span></label>
+        <input type="password" id="cfg-key" placeholder="optional">
+      </div>
+      <div class="mf"><label>Poll interval (seconds)</label>
+        <input type="number" id="cfg-poll" value="6" min="3" max="60">
+        <div class="mf-hint">How often to check for changes made directly in the database</div>
+      </div>
+    </div>
+    <div class="mdl-foot">
+      <button class="btn-cnl" onclick="closeModal('setup-ov')">Cancel</button>
+      <button class="btn-save" onclick="saveConfig()">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PERSON MODAL ══ -->
+<div id="pmov" class="mov" onclick="ovClose(event,'pmov')">
+  <div class="mdl">
+    <div class="mdl-hdr">
+      <h2 id="pm-title">Add Person</h2>
+      <p>All fields optional · Dates: <b>1985</b> · <b>06/1985</b> · <b>15/06/1985</b></p>
+    </div>
+    <div class="mdl-body">
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="openTab(this,'t-identity')">Identity</button>
+        <button class="tab-btn" onclick="openTab(this,'t-life')">Life Events</button>
+        <button class="tab-btn" onclick="openTab(this,'t-details')">Details</button>
+        <button class="tab-btn" onclick="openTab(this,'t-notes')">Notes</button>
+      </div>
+      <div class="tab-pane active" id="t-identity">
+        <div class="mf-2col">
+          <div class="mf"><label>First Name</label><input type="text" id="p-first" autocomplete="off"></div>
+          <div class="mf"><label>Last Name</label><input type="text" id="p-last" autocomplete="off"></div>
+        </div>
+        <div class="mf"><label>Maiden Name</label><input type="text" id="p-maiden" autocomplete="off"></div>
+        <div class="mf"><label>Gender</label>
+          <select id="p-gender"><option value="">— not specified —</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
+        </div>
+      </div>
+      <div class="tab-pane" id="t-life">
+        <div class="mf-2col">
+          <div class="mf"><label>Date of Birth</label><input type="text" id="p-bdate" placeholder="YYYY or DD/MM/YYYY" autocomplete="off"></div>
+          <div class="mf"><label>Place of Birth</label><input type="text" id="p-bplace" autocomplete="off"></div>
+        </div>
+        <div class="mf-2col">
+          <div class="mf"><label>Date of Death</label><input type="text" id="p-ddate" placeholder="YYYY or DD/MM/YYYY" autocomplete="off"></div>
+          <div class="mf"><label>Place of Death</label><input type="text" id="p-dplace" autocomplete="off"></div>
+        </div>
+      </div>
+      <div class="tab-pane" id="t-details">
+        <div class="mf"><label>Occupation</label><input type="text" id="p-occ" autocomplete="off"></div>
+        <div class="mf"><label>Education</label><input type="text" id="p-edu" autocomplete="off"></div>
+        <div class="mf-2col">
+          <div class="mf"><label>Eye Color</label><input type="text" id="p-eye" autocomplete="off"></div>
+          <div class="mf"><label>Hair Color</label><input type="text" id="p-hair" autocomplete="off"></div>
+        </div>
+      </div>
+      <div class="tab-pane" id="t-notes">
+        <div class="mf"><label>Research Notes</label><textarea id="p-notes" placeholder="Sources, references, uncertainties…"></textarea></div>
+      </div>
+    </div>
+    <div class="mdl-foot">
+      <button class="btn-dng" id="pm-del" style="display:none" onclick="deletePersonModal()">🗑 Delete</button>
+      <button class="btn-cnl" onclick="closeModal('pmov')">Cancel</button>
+      <button class="btn-save" onclick="savePerson()">Save Person</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ COUPLE MODAL ══ -->
+<div id="cmov" class="mov" onclick="ovClose(event,'cmov')">
+  <div class="mdl" style="width:480px">
+    <div class="mdl-hdr"><h2 id="cm-title">Marriage</h2></div>
+    <div class="mdl-body">
+      <div class="cinfo" id="cm-info"></div>
+      <div class="mf"><label>Relationship Type</label>
+        <select id="cm-type" onchange="onCoupleTypeChange()">
+          <option value="married">💍 Married</option>
+          <option value="unmarried">🤝 Unmarried Partners</option>
+        </select>
+      </div>
+      <div class="mf-2col">
+        <div class="mf"><label id="cm-sl">Marriage Date</label><input type="text" id="cm-start" placeholder="YYYY or DD/MM/YYYY" autocomplete="off"></div>
+        <div class="mf"><label id="cm-pl">Marriage Place</label><input type="text" id="cm-place" autocomplete="off"></div>
+      </div>
+      <div class="mf"><label>Status</label>
+        <select id="cm-status" onchange="onCoupleStatusChange()">
+          <option value="active">Active</option>
+          <option value="divorced">💔 Divorced</option>
+          <option value="widowed">🖤 Widowed</option>
+        </select>
+      </div>
+      <div id="cm-end-wrap" style="display:none">
+        <div class="mf-2col">
+          <div class="mf"><label id="cm-el">End Date</label><input type="text" id="cm-end" placeholder="YYYY or DD/MM/YYYY" autocomplete="off"></div>
+          <div class="mf"><label>End Place</label><input type="text" id="cm-endpl" autocomplete="off"></div>
+        </div>
+      </div>
+      <div class="mf"><label>Line Color</label>
+        <div class="color-row">
+          <input type="color" id="cm-color" value="#2563eb" oninput="document.getElementById('cm-hex').value=this.value">
+          <input type="text"  id="cm-hex"   value="#2563eb" placeholder="#2563eb" maxlength="7"
+                 oninput="let v=this.value.trim();if(!v.startsWith('#'))v='#'+v;if(/^#[0-9a-fA-F]{6}$/.test(v))document.getElementById('cm-color').value=v">
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px dashed var(--ib);margin:12px 0">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin-bottom:6px">Children of this couple</div>
+      <div id="cm-children"></div>
+      <button class="btn-add-child" onclick="startAddChild()">👶 Add child from canvas</button>
+    </div>
+    <div class="mdl-foot">
+      <button class="btn-dng" onclick="deleteCouple()">🗑 Delete</button>
+      <button class="btn-cnl" onclick="closeModal('cmov')">Cancel</button>
+      <button class="btn-save" onclick="saveCouple()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════
+const CONF_KEY = 'ft_cfg';
+const ATTR_KEY = 'ft_attrs';
+
+let CFG = { url:'./api.php', key:'', poll:6 };
+
+const MARRIAGE_BLUES = ['#2563eb','#1d4ed8','#3b82f6','#1e40af','#60a5fa','#1e3a8a','#93c5fd'];
+
+const ATTR_DEFS = [
+  {key:'maiden_name', label:'Maiden Name',   def:true },
+  {key:'birth_date',  label:'Birth Date',    def:true },
+  {key:'death_date',  label:'Death Date',    def:true },
+  {key:'birth_place', label:'Place of Birth',def:false},
+  {key:'death_place', label:'Place of Death',def:false},
+  {key:'occupation',  label:'Occupation',    def:true },
+  {key:'education',   label:'Education',     def:false},
+  {key:'eye_color',   label:'Eye Color',     def:false},
+  {key:'hair_color',  label:'Hair Color',    def:false},
+  {key:'gender',      label:'Gender',        def:false},
+  {key:'notes',       label:'Notes',         def:false},
+];
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const D = {
+  persons:     new Map(),
+  couples:     new Map(),
+  parentChild: new Map(),
+};
+
+let attrs = {};
+const UI = {
+  connectMode:null, connectFrom:null,
+  editPersonId:null, editCoupleId:null,
+  dragging:null,
+  grid:false, gridH:220,
+  childColor:'#16a34a',
+  canvasW:3000, canvasH:2200,
+  pollTimer:null,
+  posDebounce:{},
+};
+
+// ═══════════════════════════════════════════════════════
+//  API HELPERS
+// ═══════════════════════════════════════════════════════
+async function api(resource, method='GET', body=null, id='') {
+  const url = CFG.url + '?r=' + resource + (id?'&id='+encodeURIComponent(id):'');
+  const opts = { method, headers:{'Content-Type':'application/json'} };
+  if (CFG.key) opts.headers['X-Api-Key'] = CFG.key;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API error ' + res.status);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOAD & POLL
+// ═══════════════════════════════════════════════════════
+async function loadAll() {
+  try {
+    const data = await api('all');
+    applySnapshot(data, true);
+    setConn('ok','Connected');
+    return true;
+  } catch(e) {
+    setConn('err','Unreachable — check api.php');
+    showToast('Cannot reach API: ' + e.message);
+    return false;
+  }
+}
+
+function applySnapshot(data, full=false) {
+  // ── Persons ──
+  const incomingPersonIds = new Set(data.persons.map(p=>p.id));
+  // Remove deleted
+  D.persons.forEach((_,id) => {
+    if (!incomingPersonIds.has(id)) {
+      D.persons.delete(id);
+      const el = document.getElementById('pc-'+id);
+      if(el) el.remove();
+    }
+  });
+  // Add/update
+  data.persons.forEach(p => {
+    const prev = D.persons.get(p.id);
+    D.persons.set(p.id, p);
+    if (p.canvas_x != null) {
+      if (!prev || !document.getElementById('pc-'+p.id)) mountCard(p);
+      else if (!prev || prev.updated_at !== p.updated_at) refreshCard(p.id);
+    } else {
+      const el = document.getElementById('pc-'+p.id);
+      if(el) el.remove();
+    }
+  });
+
+  // ── Couples ──
+  const incomingCoupleIds = new Set(data.couples.map(c=>c.id));
+  D.couples.forEach((_,id) => { if(!incomingCoupleIds.has(id)) D.couples.delete(id); });
+  data.couples.forEach(c => D.couples.set(c.id,c));
+
+  // ── Parent-child ──
+  const incomingPcIds = new Set(data.parent_child.map(pc=>pc.id));
+  D.parentChild.forEach((_,id) => { if(!incomingPcIds.has(id)) D.parentChild.delete(id); });
+  data.parent_child.forEach(pc => D.parentChild.set(pc.id,pc));
+
+  draw();
+  renderUnassigned();
+}
+
+function startPolling() {
+  clearInterval(UI.pollTimer);
+  const interval = Math.max(3, CFG.poll||6) * 1000;
+  UI.pollTimer = setInterval(async () => {
+    try {
+      const data = await api('all');
+      applySnapshot(data);
+      setConn('ok','Connected');
+    } catch { setConn('err','Poll failed'); }
+  }, interval);
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAW (SVG)
+// ═══════════════════════════════════════════════════════
+function svgN(tag, a={}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const[k,v] of Object.entries(a)) el.setAttribute(k,v);
+  return el;
+}
+
+function cardGeom(personId) {
+  const p = D.persons.get(personId);
+  if(!p || p.canvas_x==null) return null;
+  const el = document.getElementById('pc-'+personId);
+  if(!el) return null;
+  return {
+    cx: p.canvas_x+el.offsetWidth/2,  cy: p.canvas_y+el.offsetHeight/2,
+    top:p.canvas_y, bot:p.canvas_y+el.offsetHeight,
+    x:p.canvas_x,   y:p.canvas_y, w:el.offsetWidth, h:el.offsetHeight,
+  };
+}
+
+function draw() {
+  const lsvg = document.getElementById('lsvg');
+  const cc = UI.childColor;
+  lsvg.innerHTML = `<defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L9,3.5 z" fill="${cc}" opacity=".8"/>
+    </marker></defs>`;
+  if(UI.grid) drawGenBands();
+
+  // ── 1. Couple lines ──
+  for(const c of D.couples.values()) {
+    const g1=cardGeom(c.person1_id), g2=cardGeom(c.person2_id);
+    if(!g1||!g2) continue;
+    const x1=g1.cx,y1=g1.cy,x2=g2.cx,y2=g2.cy;
+    const bcy=(y1+y2)/2, mx=(x1+x2)/2, my=(y1+y2)/2;
+    const col=c.line_color||'#2563eb';
+
+    // Hit area
+    const hit=svgN('path',{d:`M${x1},${y1} C${x1},${bcy} ${x2},${bcy} ${x2},${y2}`,
+      fill:'none',stroke:'transparent','stroke-width':'16',cursor:'pointer'});
+    hit.classList.add('hit');
+    hit.addEventListener('click',()=>openCoupleModal(c.id));
+    lsvg.appendChild(hit);
+
+    // Visible line
+    lsvg.appendChild(svgN('path',{
+      d:`M${x1},${y1} C${x1},${bcy} ${x2},${bcy} ${x2},${y2}`,
+      fill:'none',stroke:col,'stroke-width':'2.5',
+      'stroke-dasharray':c.rel_type==='married'?'none':'8,5',
+      'pointer-events':'none'
+    }));
+
+    // Divorce/widowed X
+    if(c.status==='divorced') drawX(lsvg,mx,my,'#dc2626',9);
+    else if(c.status==='widowed') drawX(lsvg,mx,my,'#1c1c1c',9);
+
+    // Date label
+    if(c.start_date||(c.status!=='active'&&c.end_date)) {
+      const sym=c.rel_type==='married'?'⚭':'∞';
+      const lines=[];
+      if(c.start_date) lines.push({t:`${sym} ${c.start_date}`,col});
+      if(c.start_place) lines.push({t:`📍 ${c.start_place}`,col:'#888'});
+      if(c.status==='divorced'&&c.end_date) lines.push({t:`✕ div. ${c.end_date}`,col:'#dc2626'});
+      if(c.status==='widowed' &&c.end_date) lines.push({t:`✕ wid. ${c.end_date}`,col:'#444'});
+      drawLabel(lsvg,mx,my,lines,col);
+    }
+  }
+
+  // ── 2. Child lines from couple midpoints (junction style) ──
+  const byCouple=new Map(), soloLinks=[];
+  for(const pc of D.parentChild.values()) {
+    if(pc.couple_id) {
+      if(!byCouple.has(pc.couple_id)) byCouple.set(pc.couple_id,[]);
+      byCouple.get(pc.couple_id).push(pc.child_id);
+    } else soloLinks.push(pc);
+  }
+
+  for(const [coupleId,childIds] of byCouple) {
+    const couple=D.couples.get(coupleId); if(!couple) continue;
+    const g1=cardGeom(couple.person1_id), g2=cardGeom(couple.person2_id);
+    if(!g1||!g2) continue;
+    const ox=(g1.cx+g2.cx)/2, oy=(g1.cy+g2.cy)/2;
+    const kids=childIds.map(id=>({id,g:cardGeom(id)})).filter(x=>x.g);
+    if(!kids.length) continue;
+    const minKidY=Math.min(...kids.map(k=>k.g.top));
+    const jY=oy+(minKidY-oy)*0.55;
+
+    lsvg.appendChild(svgN('line',{x1:ox,y1:oy,x2:ox,y2:jY,
+      stroke:cc,'stroke-width':'2','pointer-events':'none'}));
+
+    if(kids.length===1) {
+      const {g}=kids[0];
+      lsvg.appendChild(svgN('line',{x1:ox,y1:jY,x2:g.cx,y2:g.top,
+        stroke:cc,'stroke-width':'2','marker-end':'url(#arr)','pointer-events':'none'}));
+    } else {
+      const xs=kids.map(k=>k.g.cx);
+      lsvg.appendChild(svgN('line',{x1:Math.min(...xs),y1:jY,x2:Math.max(...xs),y2:jY,
+        stroke:cc,'stroke-width':'2','pointer-events':'none'}));
+      kids.forEach(({g})=>lsvg.appendChild(svgN('line',{
+        x1:g.cx,y1:jY,x2:g.cx,y2:g.top,
+        stroke:cc,'stroke-width':'2','marker-end':'url(#arr)','pointer-events':'none'})));
+    }
+  }
+
+  // ── 3. Solo parent lines ──
+  for(const pc of soloLinks) {
+    const gp=cardGeom(pc.parent_id), gc=cardGeom(pc.child_id);
+    if(!gp||!gc) continue;
+    const bcy=(gp.cy+gc.top)/2;
+    lsvg.appendChild(svgN('path',{
+      d:`M${gp.cx},${gp.cy} C${gp.cx},${bcy} ${gc.cx},${bcy} ${gc.cx},${gc.top}`,
+      fill:'none',stroke:cc,'stroke-width':'2','stroke-dasharray':'6,3',
+      'marker-end':'url(#arr)','pointer-events':'none'}));
+  }
+}
+
+function drawX(svg,mx,my,col,s) {
+  svg.appendChild(svgN('line',{x1:mx-s,y1:my-s,x2:mx+s,y2:my+s,stroke:col,'stroke-width':'3','pointer-events':'none','stroke-linecap':'round'}));
+  svg.appendChild(svgN('line',{x1:mx+s,y1:my-s,x2:mx-s,y2:my+s,stroke:col,'stroke-width':'3','pointer-events':'none','stroke-linecap':'round'}));
+}
+
+function drawLabel(svg,mx,my,lines,borderCol) {
+  if(!lines.length) return;
+  const LH=15,PX=8,PY=4;
+  const bW=Math.max(Math.max(...lines.map(l=>l.t.length))*6.4+PX*2,60);
+  const bH=lines.length*LH+PY*2;
+  svg.appendChild(svgN('rect',{x:mx-bW/2,y:my-bH/2,width:bW,height:bH,
+    fill:'rgba(255,255,255,.94)',rx:'5',stroke:borderCol,'stroke-width':'1','pointer-events':'none'}));
+  lines.forEach((ln,i)=>{
+    const t=svgN('text',{x:mx,y:my-bH/2+PY+LH*(i+0.75),'text-anchor':'middle',
+      'font-family':'Nunito,sans-serif','font-size':'11','fill':ln.col,'pointer-events':'none'});
+    t.textContent=ln.t; svg.appendChild(t);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  GENERATION GRID
+// ═══════════════════════════════════════════════════════
+function drawGenBands() {
+  const gs=document.getElementById('gen-svg');
+  const W=UI.canvasW,GH=UI.gridH;
+  gs.innerHTML='';
+  const max=Math.ceil(UI.canvasH/GH);
+  for(let g=0;g<max;g++){
+    const y=g*GH;
+    gs.appendChild(svgN('rect',{x:0,y,width:W,height:GH,
+      fill:g%2===0?'rgba(0,0,0,0.025)':'rgba(0,0,0,0.005)','pointer-events':'none'}));
+    gs.appendChild(svgN('line',{x1:0,y1:y,x2:W,y2:y,
+      stroke:'rgba(0,0,0,0.08)','stroke-width':'1','pointer-events':'none'}));
+    const lbl=svgN('text',{x:8,y:y+16,'font-family':'Nunito,sans-serif','font-size':'12',
+      fill:'rgba(0,0,0,0.2)','pointer-events':'none'});
+    lbl.textContent=`Gen ${g+1}`;
+    gs.appendChild(lbl);
+  }
+}
+
+function snapY(y){return UI.grid?Math.round(y/UI.gridH)*UI.gridH+20:y;}
+
+// ═══════════════════════════════════════════════════════
+//  PERSON CARDS
+// ═══════════════════════════════════════════════════════
+function mountCard(p){
+  if(document.getElementById('pc-'+p.id)){refreshCard(p.id);return;}
+  const div=document.createElement('div');
+  div.className='pc';div.id='pc-'+p.id;
+  div.style.left=p.canvas_x+'px';div.style.top=p.canvas_y+'px';
+  div.style.borderLeftColor=gCol(p.gender);
+  div.innerHTML=buildCard(p);
+  div.addEventListener('mousedown',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    e.preventDefault();
+    const cw=document.getElementById('cwrap'),wr=cw.getBoundingClientRect();
+    UI.dragging={id:p.id,
+      sx:e.clientX-wr.left+cw.scrollLeft,sy:e.clientY-wr.top+cw.scrollTop,
+      ox:p.canvas_x,oy:p.canvas_y};
+    div.classList.add('dragging');
+  });
+  div.addEventListener('click',e=>{
+    if(e.target.tagName==='BUTTON')return;
+    if(UI.connectMode==='child'){finishAddChild(p.id);return;}
+    if(UI.connectMode&&UI.connectFrom!==p.id)finishConnect(p.id);
+  });
+  div.addEventListener('dblclick',e=>{if(e.target.tagName!=='BUTTON')openEditPerson(p.id);});
+  document.getElementById('cinner').appendChild(div);
+}
+
+function buildCard(p){
+  const fn=[p.first_name,p.last_name].filter(Boolean).join(' ')||'(unnamed)';
+  let rows='';
+  if(attrs.maiden_name&&p.maiden_name)
+    rows+=`<div class="pc-maiden">(${esc(p.maiden_name)})</div>`;
+  // Birth/death combined row
+  const sb=attrs.birth_date&&p.birth_date,sd=attrs.death_date&&p.death_date;
+  if(sb||sd){
+    const b=sb?boldY(p.birth_date):'',d=sd?boldY(p.death_date):'';
+    rows+=`<div class="pc-attr"><span class="ai">🗓</span><span class="av">${b}${sb&&sd?' — ':''}${d}</span></div>`;
+  }
+  const attrMap=[
+    ['birth_place','📍',p.birth_place],['death_place','📍✝',p.death_place],
+    ['occupation','💼',p.occupation],['education','🎓',p.education],
+    ['eye_color','👁',p.eye_color],['hair_color','💇',p.hair_color],
+    ['notes','📝',p.notes?p.notes.slice(0,80)+(p.notes.length>80?'…':''):null],
+  ];
+  attrMap.forEach(([k,ico,v])=>{
+    if(attrs[k]&&v) rows+=`<div class="pc-attr"><span class="ai">${ico}</span><span class="av" style="${k==='notes'?'font-size:11px;color:#888':''}">${esc(v)}</span></div>`;
+  });
+  if(attrs.gender&&p.gender){
+    const gl={male:'♂ Male',female:'♀ Female',other:'⚧ Other'}[p.gender]||'';
+    rows+=`<div class="pc-attr"><span class="av" style="color:${gCol(p.gender)}">${gl}</span></div>`;
+  }
+  return `
+    <div class="pc-top"><div class="pc-name">${esc(fn)}</div></div>
+    ${rows?`<div class="pc-attrs">${rows}</div>`:''}
+    <div class="pc-acts">
+      <button class="pcb pcb-wed" title="Link: Married"   onclick="startCouple('${p.id}','married',event)">💍</button>
+      <button class="pcb pcb-unw" title="Link: Partners"  onclick="startCouple('${p.id}','unmarried',event)">🤝</button>
+      <button class="pcb pcb-par" title="Solo parent"     onclick="startSolo('${p.id}',event)">👪</button>
+      <button class="pcb"         title="Edit"            onclick="openEditPerson('${p.id}')">✏️</button>
+      <button class="pcb pcb-del" title="Delete"          onclick="deletePersonDirect('${p.id}')">🗑</button>
+    </div>`;
+}
+
+function refreshCard(id){
+  const p=D.persons.get(id);if(!p)return;
+  const el=document.getElementById('pc-'+id);if(!el)return;
+  el.style.borderLeftColor=gCol(p.gender);
+  el.style.left=(p.canvas_x||0)+'px';el.style.top=(p.canvas_y||0)+'px';
+  el.innerHTML=buildCard(p);
+}
+
+function refreshAllCards(){D.persons.forEach(p=>{if(p.canvas_x!=null)refreshCard(p.id);});}
+function gCol(g){return g==='male'?'#3b82f6':g==='female'?'#ec4899':'#94a3b8';}
+function boldY(d){
+  if(!d)return'';const p=d.split('/');
+  if(p.length===3)return`${esc(p[0])}/${esc(p[1])}/<b>${esc(p[2])}</b>`;
+  if(p.length===2)return`${esc(p[0])}/<b>${esc(p[1])}</b>`;
+  return`<b>${esc(d)}</b>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DRAG
+// ═══════════════════════════════════════════════════════
+document.addEventListener('mousemove',e=>{
+  if(!UI.dragging)return;
+  const cw=document.getElementById('cwrap'),wr=cw.getBoundingClientRect();
+  const mx=e.clientX-wr.left+cw.scrollLeft,my=e.clientY-wr.top+cw.scrollTop;
+  const p=D.persons.get(UI.dragging.id);if(!p)return;
+  p.canvas_x=Math.max(0,UI.dragging.ox+(mx-UI.dragging.sx));
+  p.canvas_y=snapY(Math.max(0,UI.dragging.oy+(my-UI.dragging.sy)));
+  const el=document.getElementById('pc-'+p.id);
+  if(el){el.style.left=p.canvas_x+'px';el.style.top=p.canvas_y+'px';}
+  draw();
+});
+document.addEventListener('mouseup',()=>{
+  if(!UI.dragging)return;
+  const id=UI.dragging.id;
+  document.getElementById('pc-'+id)?.classList.remove('dragging');
+  const p=D.persons.get(id);
+  UI.dragging=null;
+  if(p){
+    clearTimeout(UI.posDebounce[id]);
+    UI.posDebounce[id]=setTimeout(()=>{
+      api('persons','PUT',{canvas_x:p.canvas_x,canvas_y:p.canvas_y},id).catch(()=>{});
+    },700);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  CONNECT MODES
+// ═══════════════════════════════════════════════════════
+function hiCards(srcId){
+  D.persons.forEach(p=>{
+    const el=document.getElementById('pc-'+p.id);if(!el)return;
+    el.classList.remove('hi-src','hi-tgt');
+    if(p.id===srcId)el.classList.add('hi-src');
+    else if(p.canvas_x!=null)el.classList.add('hi-tgt');
+  });
+}
+function clearHi(){document.querySelectorAll('.pc').forEach(el=>el.classList.remove('hi-src','hi-tgt'));}
+
+function startCouple(pid,type,e){
+  e.stopPropagation();cancelConnect(true);
+  UI.connectMode=type;UI.connectFrom=pid;
+  setBanner(`${type==='married'?'💍':'🤝'} Click another person to link as ${type==='married'?'married':'partners'}`,'bn-'+(type==='married'?'wed':'unw'));
+  hiCards(pid);
+}
+async function finishConnect(toId){
+  const fromId=UI.connectFrom,type=UI.connectMode;
+  if(!fromId||fromId===toId){cancelConnect();return;}
+  const dup=[...D.couples.values()].some(c=>(c.person1_id===fromId&&c.person2_id===toId)||(c.person1_id===toId&&c.person2_id===fromId));
+  if(dup){showToast('Already linked as a couple');cancelConnect();return;}
+  const color=nextBlue(fromId);
+  try{
+    const row=await api('couples','POST',{person1_id:fromId,person2_id:toId,rel_type:type,line_color:color});
+    D.couples.set(row.id,row);draw();showToast('Couple linked');
+  }catch(er){showToast('Error: '+er.message);}
+  cancelConnect();
+}
+
+function startSolo(pid,e){
+  e.stopPropagation();cancelConnect(true);
+  UI.connectMode='solo';UI.connectFrom=pid;
+  setBanner('👪 Click a person to link as their child (solo parent)','bn-par');
+  hiCards(pid);
+}
+async function finishSolo(toId){
+  const fromId=UI.connectFrom;
+  if(!fromId||fromId===toId){cancelConnect();return;}
+  try{
+    const row=await api('parent_child','POST',{parent_id:fromId,child_id:toId});
+    D.parentChild.set(row.id,row);draw();showToast('Parent link added');
+  }catch(er){showToast('Error: '+er.message);}
+  cancelConnect();
+}
+
+function startAddChild(){
+  const coupleId=UI.editCoupleId;if(!coupleId)return;
+  closeModal('cmov');
+  UI.connectMode='child';UI.connectFrom=coupleId;
+  const c=D.couples.get(coupleId);
+  const n=p=>p?[p.first_name,p.last_name].filter(Boolean).join(' ')||'?':'?';
+  setBanner(`👶 Click person to add as child of ${n(D.persons.get(c?.person1_id))} & ${n(D.persons.get(c?.person2_id))}`,'bn-child');
+  D.persons.forEach(p=>{
+    const el=document.getElementById('pc-'+p.id);if(!el)return;
+    el.classList.remove('hi-src','hi-tgt');el.classList.add('hi-tgt');
+  });
+}
+async function finishAddChild(childId){
+  const coupleId=UI.connectFrom;
+  const dup=[...D.parentChild.values()].some(pc=>pc.couple_id===coupleId&&pc.child_id===childId);
+  if(dup){showToast('Already a child of this couple');cancelConnect();return;}
+  const c=D.couples.get(coupleId);if(!c){cancelConnect();return;}
+  try{
+    const r1=await api('parent_child','POST',{parent_id:c.person1_id,child_id:childId,couple_id:coupleId});
+    D.parentChild.set(r1.id,r1);
+    const al=[...D.parentChild.values()].some(pc=>pc.parent_id===c.person2_id&&pc.child_id===childId);
+    if(!al){const r2=await api('parent_child','POST',{parent_id:c.person2_id,child_id:childId,couple_id:coupleId});D.parentChild.set(r2.id,r2);}
+    draw();showToast('Child added');
+  }catch(er){showToast('Error: '+er.message);}
+  cancelConnect();
+}
+
+function cancelConnect(){
+  UI.connectMode=null;UI.connectFrom=null;
+  document.getElementById('banner').className='';clearHi();
+}
+function setBanner(txt,cls){document.getElementById('btxt').textContent=txt;document.getElementById('banner').className='on '+cls;}
+function nextBlue(pid){
+  const n=[...D.couples.values()].filter(c=>c.person1_id===pid||c.person2_id===pid).length;
+  return MARRIAGE_BLUES[n%MARRIAGE_BLUES.length];
+}
+
+// ═══════════════════════════════════════════════════════
+//  PERSON MODAL
+// ═══════════════════════════════════════════════════════
+function openAddPerson(){
+  UI.editPersonId=null;
+  document.getElementById('pm-title').textContent='Add Person';
+  document.getElementById('pm-del').style.display='none';
+  ['p-first','p-last','p-maiden','p-bdate','p-bplace','p-ddate','p-dplace','p-occ','p-edu','p-eye','p-hair','p-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('p-gender').value='';
+  openTab(document.querySelector('#pmov .tab-btn'),'t-identity');
+  showModal('pmov');
+}
+function openEditPerson(id){
+  const p=D.persons.get(id);if(!p)return;
+  UI.editPersonId=id;
+  document.getElementById('pm-title').textContent='Edit Person';
+  document.getElementById('pm-del').style.display='block';
+  const f=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
+  f('p-first',p.first_name);f('p-last',p.last_name);f('p-maiden',p.maiden_name);
+  f('p-bdate',p.birth_date);f('p-bplace',p.birth_place);
+  f('p-ddate',p.death_date);f('p-dplace',p.death_place);
+  f('p-occ',p.occupation);f('p-edu',p.education);
+  f('p-eye',p.eye_color);f('p-hair',p.hair_color);f('p-notes',p.notes);
+  document.getElementById('p-gender').value=p.gender||'';
+  openTab(document.querySelector('#pmov .tab-btn'),'t-identity');
+  showModal('pmov');
+}
+
+async function savePerson(){
+  const g=id=>document.getElementById(id).value.trim();
+  const data={
+    first_name:g('p-first'),last_name:g('p-last'),maiden_name:g('p-maiden'),
+    gender:g('p-gender')||null,
+    birth_date:g('p-bdate'),birth_place:g('p-bplace'),
+    death_date:g('p-ddate'),death_place:g('p-dplace'),
+    occupation:g('p-occ'),education:g('p-edu'),
+    eye_color:g('p-eye'),hair_color:g('p-hair'),notes:g('p-notes'),
+  };
+  for(const dk of['birth_date','death_date'])
+    if(data[dk]&&!validDate(data[dk])){showToast('Date format: YYYY, MM/YYYY or DD/MM/YYYY');return;}
+  try{
+    if(UI.editPersonId){
+      await api('persons','PUT',data,UI.editPersonId);
+      const p=D.persons.get(UI.editPersonId);Object.assign(p,data);
+      refreshCard(UI.editPersonId);draw();showToast('Updated ✓');
+    }else{
+      const cw=document.getElementById('cwrap');
+      data.canvas_x=cw.scrollLeft+cw.clientWidth/2-90;
+      data.canvas_y=snapY(cw.scrollTop+cw.clientHeight/2-60);
+      const row=await api('persons','POST',data);
+      D.persons.set(row.id,row);mountCard(row);draw();showToast('Person added ✓');
+    }
+    closeModal('pmov');
+  }catch(er){showToast('Error: '+er.message);}
+}
+
+async function deletePersonDirect(id){
+  const p=D.persons.get(id);
+  if(!confirm(`Delete ${[p?.first_name,p?.last_name].filter(Boolean).join(' ')||'this person'}?`))return;
+  try{
+    await api('persons','DELETE',null,id);
+    D.persons.delete(id);
+    const el=document.getElementById('pc-'+id);if(el)el.remove();
+    draw();renderUnassigned();showToast('Deleted');
+  }catch(er){showToast('Error: '+er.message);}
+}
+function deletePersonModal(){if(UI.editPersonId){closeModal('pmov');deletePersonDirect(UI.editPersonId);}}
+
+// ═══════════════════════════════════════════════════════
+//  COUPLE MODAL
+// ═══════════════════════════════════════════════════════
+function openCoupleModal(id){
+  const c=D.couples.get(id);if(!c)return;
+  UI.editCoupleId=id;
+  const p1=D.persons.get(c.person1_id),p2=D.persons.get(c.person2_id);
+  const n=p=>p?[p.first_name,p.last_name].filter(Boolean).join(' ')||'(unnamed)':'?';
+  document.getElementById('cm-info').textContent=`${n(p1)}  ↔  ${n(p2)}`;
+  document.getElementById('cm-type').value=c.rel_type;
+  document.getElementById('cm-start').value=c.start_date||'';
+  document.getElementById('cm-place').value=c.start_place||'';
+  document.getElementById('cm-status').value=c.status;
+  document.getElementById('cm-end').value=c.end_date||'';
+  document.getElementById('cm-endpl').value=c.end_place||'';
+  document.getElementById('cm-color').value=c.line_color||'#2563eb';
+  document.getElementById('cm-hex').value=c.line_color||'#2563eb';
+  onCoupleStatusChange();onCoupleTypeChange();
+  renderCoupleKids(id);
+  showModal('cmov');
+}
+function onCoupleTypeChange(){
+  const w=document.getElementById('cm-type').value==='married';
+  document.getElementById('cm-title').textContent=w?'Marriage':'Partnership';
+  document.getElementById('cm-sl').textContent=w?'Marriage Date':'Start Date';
+  document.getElementById('cm-pl').textContent=w?'Marriage Place':'Place';
+  document.getElementById('cm-el').textContent=w?'End Date':'End Date';
+}
+function onCoupleStatusChange(){
+  document.getElementById('cm-end-wrap').style.display=
+    document.getElementById('cm-status').value==='active'?'none':'block';
+}
+async function saveCouple(){
+  const g=id=>document.getElementById(id).value.trim();
+  const data={rel_type:g('cm-type'),start_date:g('cm-start'),start_place:g('cm-place'),
+    status:g('cm-status'),end_date:g('cm-end'),end_place:g('cm-endpl'),line_color:g('cm-color')};
+  for(const dk of['start_date','end_date'])
+    if(data[dk]&&!validDate(data[dk])){showToast('Invalid date format');return;}
+  try{
+    await api('couples','PUT',data,UI.editCoupleId);
+    const c=D.couples.get(UI.editCoupleId);Object.assign(c,data);
+    closeModal('cmov');draw();showToast('Saved ✓');
+  }catch(er){showToast('Error: '+er.message);}
+}
+async function deleteCouple(){
+  if(!confirm('Delete this relationship?'))return;
+  try{
+    await api('couples','DELETE',null,UI.editCoupleId);
+    D.couples.delete(UI.editCoupleId);
+    // Nullify couple_id references
+    for(const[pcid,pc]of D.parentChild){
+      if(pc.couple_id===UI.editCoupleId){
+        await api('parent_child','PUT',{couple_id:null},pcid);
+        pc.couple_id=null;
+      }
+    }
+    closeModal('cmov');draw();showToast('Deleted');
+  }catch(er){showToast('Error: '+er.message);}
+}
+function renderCoupleKids(coupleId){
+  const seen=new Set();
+  const kids=[...D.parentChild.values()]
+    .filter(pc=>pc.couple_id===coupleId)
+    .map(pc=>D.persons.get(pc.child_id)).filter(p=>p&&!seen.has(p.id)&&seen.add(p.id));
+  const el=document.getElementById('cm-children');
+  el.innerHTML=kids.length===0?'<div style="font-size:12px;color:var(--mu);padding:4px 0">No children yet.</div>':'';
+  kids.forEach(k=>{
+    const nm=[k.first_name,k.last_name].filter(Boolean).join(' ')||'(unnamed)';
+    const row=document.createElement('div');row.className='child-row';
+    row.innerHTML=`<span>${esc(nm)}</span><button class="child-rm" onclick="removeChild('${coupleId}','${k.id}')">×</button>`;
+    el.appendChild(row);
+  });
+}
+async function removeChild(coupleId,childId){
+  const pcs=[...D.parentChild.values()].filter(pc=>pc.couple_id===coupleId&&pc.child_id===childId);
+  for(const pc of pcs){await api('parent_child','DELETE',null,pc.id);D.parentChild.delete(pc.id);}
+  draw();renderCoupleKids(coupleId);showToast('Child unlinked');
+}
+
+// ═══════════════════════════════════════════════════════
+//  UNASSIGNED
+// ═══════════════════════════════════════════════════════
+function renderUnassigned(){
+  const un=[...D.persons.values()].filter(p=>p.canvas_x==null);
+  document.getElementById('unassigned-count').textContent=un.length;
+  const el=document.getElementById('unassigned-list');
+  el.innerHTML=un.length===0?'<div style="font-size:12px;color:var(--mu);padding:4px 0">All persons placed.</div>':'';
+  un.forEach(p=>{
+    const nm=[p.first_name,p.last_name].filter(Boolean).join(' ')||'(unnamed)';
+    const div=document.createElement('div');div.className='unassigned-item';
+    div.innerHTML=`<span class="uname">${esc(nm)}</span><span class="ubirth">${p.birth_date?boldY(p.birth_date):''}</span>
+      <button class="btn-sm" onclick="placeOnCanvas('${p.id}')">＋ Place</button>
+      <button class="btn-sm" style="border-color:#fecaca;color:#dc2626" onclick="deletePersonDirect('${p.id}')">🗑</button>`;
+    el.appendChild(div);
+  });
+}
+async function placeOnCanvas(id){
+  const cw=document.getElementById('cwrap');
+  const cx=cw.scrollLeft+cw.clientWidth/2-90+Math.random()*60-30;
+  const cy=snapY(cw.scrollTop+cw.clientHeight/2-60+Math.random()*40-20);
+  try{
+    await api('persons','PUT',{canvas_x:cx,canvas_y:cy},id);
+    const p=D.persons.get(id);p.canvas_x=cx;p.canvas_y=cy;
+    mountCard(p);draw();renderUnassigned();
+  }catch(er){showToast('Error: '+er.message);}
+}
+
+// ═══════════════════════════════════════════════════════
+//  ATTRIBUTE TOGGLES
+// ═══════════════════════════════════════════════════════
+function initAttrs(){
+  const saved=JSON.parse(localStorage.getItem(ATTR_KEY)||'{}');
+  ATTR_DEFS.forEach(a=>{attrs[a.key]=a.key in saved?saved[a.key]:a.def;});
+  const el=document.getElementById('attr-toggles');el.innerHTML='';
+  ATTR_DEFS.forEach(a=>{
+    const row=document.createElement('div');row.className='toggle-row';
+    row.innerHTML=`<span class="toggle-lbl">${a.label}</span>
+      <label class="tog"><input type="checkbox" ${attrs[a.key]?'checked':''} onchange="toggleAttr('${a.key}',this.checked)">
+      <div class="tog-track"></div><div class="tog-thumb"></div></label>`;
+    el.appendChild(row);
+  });
+}
+function toggleAttr(key,val){
+  attrs[key]=val;localStorage.setItem(ATTR_KEY,JSON.stringify(attrs));
+  refreshAllCards();draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS SETTINGS
+// ═══════════════════════════════════════════════════════
+function applyCanvasSize(){
+  UI.canvasW=+document.getElementById('cw').value||3000;
+  UI.canvasH=+document.getElementById('ch').value||2200;
+  const ci=document.getElementById('cinner');
+  ci.style.width=UI.canvasW+'px';ci.style.height=UI.canvasH+'px';
+  ['lsvg','gen-svg'].forEach(sid=>{
+    const s=document.getElementById(sid);
+    s.setAttribute('width',UI.canvasW);s.setAttribute('height',UI.canvasH);
+    s.setAttribute('viewBox',`0 0 ${UI.canvasW} ${UI.canvasH}`);
+  });
+  draw();
+}
+function applyCanvasBg(){document.getElementById('cinner').style.background=document.getElementById('canvas-bg').value;}
+function applyGrid(){
+  UI.grid=document.getElementById('grid-tog').checked;
+  UI.gridH=+document.getElementById('grid-h').value||220;
+  document.getElementById('grid-opts').style.display=UI.grid?'block':'none';
+  draw();
+}
+function applyChildColor(){UI.childColor=document.getElementById('child-col').value;draw();}
+
+// ═══════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════════════════
+function showModal(id){document.getElementById(id).classList.add('on');}
+function closeModal(id){document.getElementById(id).classList.remove('on');UI.editPersonId=null;UI.editCoupleId=null;}
+function ovClose(e,id){if(e.target===document.getElementById(id))closeModal(id);}
+function openTab(btn,paneId){
+  const mdl=btn.closest('.mdl');
+  mdl.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  mdl.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');document.getElementById(paneId).classList.add('active');
+}
+function toggleSec(hdr){
+  hdr.classList.toggle('open');
+  hdr.nextElementSibling.classList.toggle('closed');
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFIG SAVE
+// ═══════════════════════════════════════════════════════
+async function saveConfig(){
+  CFG.url=document.getElementById('cfg-url').value.trim()||'./api.php';
+  CFG.key=document.getElementById('cfg-key').value.trim();
+  CFG.poll=+document.getElementById('cfg-poll').value||6;
+  localStorage.setItem(CONF_KEY,JSON.stringify(CFG));
+  setConn('wait','Connecting…');
+  const ok=await loadAll();
+  if(ok){closeModal('setup-ov');startPolling();}
+}
+
+// ═══════════════════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    const open=document.querySelector('.mov.on');
+    if(open)open.classList.remove('on');else cancelConnect();
+  }
+  if(e.key==='Enter'&&!e.shiftKey){
+    if(document.getElementById('pmov').classList.contains('on'))savePerson();
+    if(document.getElementById('setup-ov').classList.contains('on'))saveConfig();
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+//  EXPORT
+// ═══════════════════════════════════════════════════════
+async function exportPNG(){
+  if(typeof html2canvas==='undefined'){showToast('Library not loaded');return;}
+  showToast('Rendering…');
+  try{
+    const cvs=await html2canvas(document.getElementById('cinner'),{useCORS:true,scale:1.5});
+    const a=document.createElement('a');a.download='family-tree.png';a.href=cvs.toDataURL();a.click();
+    showToast('PNG exported ✓');
+  }catch{showToast('Export failed');}
+}
+async function exportPDF(){
+  if(typeof html2canvas==='undefined'||!window.jspdf){showToast('Library not loaded');return;}
+  showToast('Rendering PDF…');
+  try{
+    const cvs=await html2canvas(document.getElementById('cinner'),{useCORS:true,scale:1.5});
+    const img=cvs.toDataURL('image/png');
+    const{jsPDF}=window.jspdf;const W=cvs.width,H=cvs.height;
+    const pdf=new jsPDF({orientation:W>H?'landscape':'portrait',unit:'px',format:[W,H],hotfixes:['px_scaling']});
+    pdf.addImage(img,'PNG',0,0,W,H);pdf.save('family-tree.pdf');
+    showToast('PDF exported ✓');
+  }catch{showToast('PDF failed');}
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function validDate(v){return/^\d{4}$/.test(v)||/^\d{1,2}\/\d{4}$/.test(v)||/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v);}
+function setConn(st,txt){
+  document.getElementById('conn-dot').className='conn-dot '+st;
+  document.getElementById('conn-lbl').textContent=txt;
+}
+let _tt;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('on'),2600);}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+async function init(){
+  initAttrs();
+  applyCanvasSize();
+  applyCanvasBg();
+  const saved=JSON.parse(localStorage.getItem(CONF_KEY)||'{}');
+  if(saved.url){CFG={...CFG,...saved};
+    document.getElementById('cfg-url').value=CFG.url;
+    document.getElementById('cfg-key').value=CFG.key||'';
+    document.getElementById('cfg-poll').value=CFG.poll||6;
+  }
+  setConn('wait','Connecting…');
+  const ok=await loadAll();
+  if(ok)startPolling();
+  else setTimeout(()=>showModal('setup-ov'),600);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -62,15 +62,7 @@ function getCountry($ip) {
     return $cc;
 }
 
-/***** SSL CERT CACHE *****/
-function getSSLCertInfo($domain) {
-    static $cache = [];
-
-    // Already fetched for this request?
-    if (isset($cache[$domain])) {
-        return $cache[$domain];
-    }
-
+function getSSLIssuedDate($domain) {
     $context = stream_context_create([
         'ssl' => [
             'capture_peer_cert' => true,
@@ -81,53 +73,61 @@ function getSSLCertInfo($domain) {
 
     $socket = @stream_socket_client(
         "ssl://{$domain}:443",
-        $errno,
-        $errstr,
-        8,
+        $errno, $errstr, 8,
         STREAM_CLIENT_CONNECT,
         $context
     );
 
-    if (!$socket) {
-        return $cache[$domain] = null;
-    }
+    if (!$socket) return 'No SSL';
 
     $params = stream_context_get_params($socket);
     fclose($socket);
 
     $cert = $params['options']['ssl']['peer_certificate'] ?? null;
-
-    if (!$cert) {
-        return $cache[$domain] = null;
-    }
+    if (!$cert) return 'No SSL';
 
     $info = openssl_x509_parse($cert);
-
-    return $cache[$domain] = $info ?: null;
-}
-
-/***** SSL ISSUED DATE *****/
-function getSSLIssuedDate($domain) {
-    $info = getSSLCertInfo($domain);
-
     if (!$info) return 'No SSL';
 
     $ts = $info['validFrom_time_t'] ?? null;
-
-    return $ts
-        ? gmdate('M j H:i:s Y', $ts) . ' GMT'
-        : 'No SSL';
+    return $ts ? gmdate('M j H:i:s Y', $ts) . ' GMT' : 'No SSL';
 }
 
-/***** SSL ISSUER *****/
 function getSSLIssuer($domain) {
-    $info = getSSLCertInfo($domain);
+    $context = stream_context_create([
+        'ssl' => [
+            'capture_peer_cert' => true,
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+        ]
+    ]);
 
+    $socket = @stream_socket_client(
+        "ssl://{$domain}:443",
+        $errno, $errstr, 8,
+        STREAM_CLIENT_CONNECT,
+        $context
+    );
+
+    if (!$socket) return 'No SSL';
+
+    $params = stream_context_get_params($socket);
+    fclose($socket);
+
+    $cert = $params['options']['ssl']['peer_certificate'] ?? null;
+    if (!$cert) return 'No SSL';
+
+    $info = openssl_x509_parse($cert);
     if (!$info) return 'No SSL';
 
-    return $info['issuer']['O']
-        ?? $info['issuer']['CN']
-        ?? 'Unknown';
+    // Issuer is usually in ['issuer']['O'] or CN
+    $issuer = $info['issuer'] ?? null;
+    if (!$issuer) return 'No SSL';
+
+    // Prefer organization (O), fallback to common name (CN)
+    $name = $issuer['O'] ?? ($issuer['CN'] ?? null);
+
+    return $name ?: 'Unknown issuer';
 }
 
 $results = [];
