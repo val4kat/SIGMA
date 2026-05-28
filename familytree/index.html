@@ -125,6 +125,16 @@ input[type=number]:focus{border-color:var(--ac)}
 .child-rm{background:none;border:none;color:#dc2626;font-size:15px;cursor:pointer;padding:0 2px}
 .btn-add-child{width:100%;padding:7px;background:#f0fdf4;color:#15803d;border:1.5px solid #bbf7d0;border-radius:7px;font-family:'Nunito',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:6px}
 .btn-add-child:hover{background:#dcfce7}
+.rel-card{background:#fff;border:1.5px solid var(--ib);border-radius:9px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .15s;position:relative}
+.rel-card:hover{border-color:var(--ac);box-shadow:0 2px 8px rgba(74,55,40,.12)}
+.rel-card-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.rel-card-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.rel-card-name{font-weight:700;font-size:13.5px;color:var(--tx);flex:1}
+.rel-card-type{font-size:11px;color:var(--mu);background:#f0ebe0;padding:2px 7px;border-radius:8px}
+.rel-card-meta{font-size:11.5px;color:var(--mu);line-height:1.6;padding-left:18px}
+.rel-card-status-div{color:#dc2626;font-weight:600}
+.rel-card-status-wid{color:#444;font-weight:600}
+.rel-no-partners{font-size:13px;color:var(--mu);padding:12px 0;text-align:center}
 /* Setup */
 .setup-box{background:#f0ebe0;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:12.5px;color:var(--mu);line-height:2}
 .setup-box b{color:var(--tx)}
@@ -278,6 +288,7 @@ input[type=number]:focus{border-color:var(--ac)}
         <button class="tab-btn" onclick="openTab(this,'t-life')">Life Events</button>
         <button class="tab-btn" onclick="openTab(this,'t-details')">Details</button>
         <button class="tab-btn" onclick="openTab(this,'t-notes')">Notes</button>
+        <button class="tab-btn" id="pm-rel-tab" onclick="openTab(this,'t-relations');renderPersonRelations()">Family</button>
       </div>
       <div class="tab-pane active" id="t-identity">
         <div class="mf-2col">
@@ -309,6 +320,9 @@ input[type=number]:focus{border-color:var(--ac)}
       </div>
       <div class="tab-pane" id="t-notes">
         <div class="mf"><label>Research Notes</label><textarea id="p-notes" placeholder="Sources, references, uncertainties…"></textarea></div>
+      </div>
+      <div class="tab-pane" id="t-relations">
+        <div id="pm-relations-body"></div>
       </div>
     </div>
     <div class="mdl-foot">
@@ -420,11 +434,23 @@ const UI = {
 // ═══════════════════════════════════════════════════════
 async function api(resource, method='GET', body=null, id='') {
   const url = CFG.url + '?r=' + resource + (id?'&id='+encodeURIComponent(id):'');
-  const opts = { method, headers:{'Content-Type':'application/json'} };
+  // Some servers block PUT/DELETE at web-server level — tunnel them through POST
+  const tunnelled = (method==='PUT'||method==='DELETE');
+  const opts = {
+    method: tunnelled ? 'POST' : method,
+    headers: {'Content-Type':'application/json', 'X-HTTP-Method-Override': tunnelled ? method : ''},
+  };
   if (CFG.key) opts.headers['X-Api-Key'] = CFG.key;
-  if (body) opts.body = JSON.stringify(body);
+  if (!tunnelled) delete opts.headers['X-HTTP-Method-Override'];
+  if (body || tunnelled) opts.body = JSON.stringify(body || {});
   const res = await fetch(url, opts);
-  const data = await res.json();
+  const text = await res.text();
+  const jsonStart = text.indexOf('{');
+  const jsonArr   = text.indexOf('[');
+  const start = jsonStart === -1 ? jsonArr : jsonArr === -1 ? jsonStart : Math.min(jsonStart, jsonArr);
+  let data;
+  try { data = JSON.parse(start === -1 ? text : text.slice(start)); }
+  catch(e) { throw new Error('Bad JSON from server: ' + text.slice(0,200)); }
   if (!res.ok) throw new Error(data.error || 'API error ' + res.status);
   return data;
 }
@@ -459,10 +485,12 @@ function applySnapshot(data, full=false) {
   // Add/update
   data.persons.forEach(p => {
     const prev = D.persons.get(p.id);
+    // Never let a poll overwrite a card that is currently being dragged
+    if (UI.dragging && UI.dragging.id === p.id) return;
     D.persons.set(p.id, p);
     if (p.canvas_x != null) {
       if (!prev || !document.getElementById('pc-'+p.id)) mountCard(p);
-      else if (!prev || prev.updated_at !== p.updated_at) refreshCard(p.id);
+      else if (prev.updated_at !== p.updated_at) refreshCard(p.id);
     } else {
       const el = document.getElementById('pc-'+p.id);
       if(el) el.remove();
@@ -509,10 +537,13 @@ function cardGeom(personId) {
   if(!p || p.canvas_x==null) return null;
   const el = document.getElementById('pc-'+personId);
   if(!el) return null;
+  // Use actual rendered size; skip if not yet laid out
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if(!w || !h) return null;
   return {
-    cx: p.canvas_x+el.offsetWidth/2,  cy: p.canvas_y+el.offsetHeight/2,
-    top:p.canvas_y, bot:p.canvas_y+el.offsetHeight,
-    x:p.canvas_x,   y:p.canvas_y, w:el.offsetWidth, h:el.offsetHeight,
+    cx: p.canvas_x + w/2,  cy: p.canvas_y + h/2,
+    top: p.canvas_y, bot: p.canvas_y + h,
+    x: p.canvas_x, y: p.canvas_y, w, h,
   };
 }
 
@@ -652,7 +683,7 @@ function drawGenBands() {
   }
 }
 
-function snapY(y){return UI.grid?Math.round(y/UI.gridH)*UI.gridH+20:y;}
+function snapY(y){return UI.grid?Math.round(y/UI.gridH)*UI.gridH:y;}
 
 // ═══════════════════════════════════════════════════════
 //  PERSON CARDS
@@ -668,18 +699,26 @@ function mountCard(p){
     if(e.target.tagName==='BUTTON')return;
     e.preventDefault();
     const cw=document.getElementById('cwrap'),wr=cw.getBoundingClientRect();
+    const mouseX=e.clientX-wr.left+cw.scrollLeft;
+    const mouseY=e.clientY-wr.top+cw.scrollTop;
+    // Use the element's actual rendered position as origin (avoids snap-offset drift)
+    const elLeft=parseFloat(div.style.left)||p.canvas_x;
+    const elTop =parseFloat(div.style.top) ||p.canvas_y;
     UI.dragging={id:p.id,
-      sx:e.clientX-wr.left+cw.scrollLeft,sy:e.clientY-wr.top+cw.scrollTop,
-      ox:p.canvas_x,oy:p.canvas_y};
+      sx:mouseX, sy:mouseY,
+      ox:elLeft, oy:elTop};
     div.classList.add('dragging');
   });
   div.addEventListener('click',e=>{
     if(e.target.tagName==='BUTTON')return;
     if(UI.connectMode==='child'){finishAddChild(p.id);return;}
+    if(UI.connectMode==='solo'){if(UI.connectFrom!==p.id)finishSolo(p.id);return;}
     if(UI.connectMode&&UI.connectFrom!==p.id)finishConnect(p.id);
   });
   div.addEventListener('dblclick',e=>{if(e.target.tagName!=='BUTTON')openEditPerson(p.id);});
   document.getElementById('cinner').appendChild(div);
+  // Wait one frame so the card has layout before draw() reads offsetWidth/Height
+  requestAnimationFrame(draw);
 }
 
 function buildCard(p){
@@ -712,7 +751,7 @@ function buildCard(p){
     <div class="pc-acts">
       <button class="pcb pcb-wed" title="Link: Married"   onclick="startCouple('${p.id}','married',event)">💍</button>
       <button class="pcb pcb-unw" title="Link: Partners"  onclick="startCouple('${p.id}','unmarried',event)">🤝</button>
-      <button class="pcb pcb-par" title="Solo parent"     onclick="startSolo('${p.id}',event)">👪</button>
+      <button class="pcb pcb-par" title="Link child (solo parent)" onclick="startSolo('${p.id}',event)">👶</button>
       <button class="pcb"         title="Edit"            onclick="openEditPerson('${p.id}')">✏️</button>
       <button class="pcb pcb-del" title="Delete"          onclick="deletePersonDirect('${p.id}')">🗑</button>
     </div>`;
@@ -855,6 +894,7 @@ function openAddPerson(){
   UI.editPersonId=null;
   document.getElementById('pm-title').textContent='Add Person';
   document.getElementById('pm-del').style.display='none';
+  document.getElementById('pm-rel-tab').style.display='none';
   ['p-first','p-last','p-maiden','p-bdate','p-bplace','p-ddate','p-dplace','p-occ','p-edu','p-eye','p-hair','p-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('p-gender').value='';
   openTab(document.querySelector('#pmov .tab-btn'),'t-identity');
@@ -865,6 +905,7 @@ function openEditPerson(id){
   UI.editPersonId=id;
   document.getElementById('pm-title').textContent='Edit Person';
   document.getElementById('pm-del').style.display='block';
+  document.getElementById('pm-rel-tab').style.display='';
   const f=(k,v)=>{const el=document.getElementById(k);if(el)el.value=v||'';};
   f('p-first',p.first_name);f('p-last',p.last_name);f('p-maiden',p.maiden_name);
   f('p-bdate',p.birth_date);f('p-bplace',p.birth_place);
@@ -916,8 +957,230 @@ async function deletePersonDirect(id){
 }
 function deletePersonModal(){if(UI.editPersonId){closeModal('pmov');deletePersonDirect(UI.editPersonId);}}
 
+// ── Relationship helpers ─────────────────────────────────────────
+function personName(p){return p?[p.first_name,p.last_name].filter(Boolean).join(' ')||'(unnamed)':'(unknown)';}
+
+/** All child IDs of a given person (from any couple or solo) */
+function childrenOf(pid){
+  const ids=new Set();
+  for(const pc of D.parentChild.values()) if(pc.parent_id===pid) ids.add(pc.child_id);
+  return [...ids];
+}
+/** All parent IDs of a given person */
+function parentsOf(pid){
+  const ids=new Set();
+  for(const pc of D.parentChild.values()) if(pc.child_id===pid) ids.add(pc.parent_id);
+  return [...ids];
+}
+/** Couple IDs that a person belongs to */
+function couplesOf(pid){
+  return [...D.couples.values()].filter(c=>c.person1_id===pid||c.person2_id===pid);
+}
+
+function computeSiblingLabel(pid, sibId){
+  const myParents  = new Set(parentsOf(pid));
+  const sibParents = new Set(parentsOf(sibId));
+  const shared = [...myParents].filter(id=>sibParents.has(id));
+  if(shared.length>=2) return 'sibling';         // both parents same
+  if(shared.length===1) {
+    // Check if they share a couple (same couple_id on their parent_child rows)
+    const myCouples  = new Set([...D.parentChild.values()].filter(pc=>pc.child_id===pid&&pc.couple_id).map(pc=>pc.couple_id));
+    const sibCouples = new Set([...D.parentChild.values()].filter(pc=>pc.child_id===sibId&&pc.couple_id).map(pc=>pc.couple_id));
+    const sharedCouple=[...myCouples].some(id=>sibCouples.has(id));
+    return sharedCouple?'sibling':'half-sibling';
+  }
+  // Check step: one of myParents is partnered with one of sibParents
+  for(const mp of myParents){
+    for(const sp of sibParents){
+      const linked=D.couples.values();
+      for(const c of linked){
+        if((c.person1_id===mp&&c.person2_id===sp)||(c.person1_id===sp&&c.person2_id===mp))
+          return 'step-sibling';
+      }
+    }
+  }
+  return null;
+}
+
+function computeCousinLabel(pid, cousinId){
+  // 1st cousin: share a grandparent (parent of a parent)
+  const myParents   = parentsOf(pid);
+  const myGrandp    = new Set(myParents.flatMap(parentsOf));
+  const theirParents = parentsOf(cousinId);
+  const theirGrandp  = new Set(theirParents.flatMap(parentsOf));
+  const sharedGrand  = [...myGrandp].filter(id=>theirGrandp.has(id));
+  if(sharedGrand.length) return '1st cousin';
+  // 2nd cousin: share a great-grandparent
+  const myGG   = new Set([...myGrandp].flatMap(parentsOf));
+  const theirGG= new Set([...theirGrandp].flatMap(parentsOf));
+  const sharedGG=[...myGG].filter(id=>theirGG.has(id));
+  if(sharedGG.length) return '2nd cousin';
+  return null;
+}
+
+function renderPersonRelations(){
+  const pid=UI.editPersonId;
+  const el=document.getElementById('pm-relations-body');
+  if(!pid){el.innerHTML='<div class="rel-no-partners">Save the person first.</div>';return;}
+  el.innerHTML='';
+
+  function section(title, icon){
+    const h=document.createElement('div');
+    h.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu);margin:14px 0 5px;display:flex;align-items:center;gap:5px';
+    h.innerHTML=`<span>${icon}</span><span>${title}</span>`;
+    el.appendChild(h);
+  }
+  function noItems(msg){
+    const d=document.createElement('div');
+    d.style.cssText='font-size:12px;color:var(--mu);padding:3px 0 6px';
+    d.textContent=msg; el.appendChild(d);
+  }
+
+  // ── PARTNERS ───────────────────────────────────────────
+  section('Partners & Marriages','💍');
+  const couples=couplesOf(pid);
+  if(!couples.length){
+    noItems('No partnerships. Use 💍 or 🤝 buttons on the card.');
+  } else {
+    couples.forEach(c=>{
+      const partnerId=c.person1_id===pid?c.person2_id:c.person1_id;
+      const partner=D.persons.get(partnerId);
+      const col=c.line_color||'#2563eb';
+      const typeLabel=c.rel_type==='married'?'💍 Married':'🤝 Partners';
+      let meta='';
+      if(c.start_date) meta+=`📅 ${esc(c.start_date)}`;
+      if(c.start_place) meta+=` · 📍${esc(c.start_place)}`;
+      if(c.status==='divorced') meta+=(meta?' · ':'')+'<span class="rel-card-status-div">💔 Divorced'+(c.end_date?' '+esc(c.end_date):'')+'</span>';
+      if(c.status==='widowed')  meta+=(meta?' · ':'')+'<span class="rel-card-status-wid">🖤 Widowed'+(c.end_date?' '+esc(c.end_date):'')+'</span>';
+      const childIds=new Set([...D.parentChild.values()].filter(pc=>pc.couple_id===c.id).map(pc=>pc.child_id));
+      if(childIds.size) meta+=(meta?' · ':'')+'👶 '+childIds.size+' child'+(childIds.size>1?'ren':'');
+      const div=document.createElement('div');div.className='rel-card';
+      div.innerHTML=`<div class="rel-card-top">
+        <div class="rel-card-dot" style="background:${col}"></div>
+        <div class="rel-card-name">${esc(personName(partner))}</div>
+        <div class="rel-card-type">${typeLabel}</div>
+      </div>${meta?`<div class="rel-card-meta">${meta}</div>`:''}
+      <div style="font-size:11px;color:var(--ib);margin-top:4px;text-align:right">Click to edit →</div>`;
+      div.addEventListener('click',()=>{closeModal('pmov');openCoupleModal(c.id);});
+      el.appendChild(div);
+    });
+  }
+
+  // ── PARENTS ────────────────────────────────────────────
+  section('Parents','👤');
+  const parents=parentsOf(pid);
+  if(!parents.length){
+    noItems('No parents linked.');
+  } else {
+    parents.forEach(parid=>{
+      const par=D.persons.get(parid);
+      const row=document.createElement('div');row.className='child-row';
+      row.style.cursor='pointer';
+      row.innerHTML=`<span>${esc(personName(par))}</span>
+        <button class="btn-sm" onclick="event.stopPropagation();openEditPerson('${parid}')">✏️</button>`;
+      row.addEventListener('click',()=>{closeModal('pmov');openEditPerson(parid);});
+      el.appendChild(row);
+    });
+  }
+
+  // ── CHILDREN ───────────────────────────────────────────
+  section('Children','👶');
+  const children=childrenOf(pid);
+  if(!children.length){
+    noItems('No children linked. Use 👶 on the card or the couple modal.');
+  } else {
+    children.forEach(childId=>{
+      const child=D.persons.get(childId);
+      // Find the pc rows linking this person to this child
+      const pcRows=[...D.parentChild.values()].filter(pc=>pc.parent_id===pid&&pc.child_id===childId);
+      const coupleCtx=pcRows.find(pc=>pc.couple_id);
+      const row=document.createElement('div');row.className='child-row';
+      row.style.cursor='pointer';
+      let extra='';
+      if(coupleCtx){
+        const c=D.couples.get(coupleCtx.couple_id);
+        const coParent=c?D.persons.get(c.person1_id===pid?c.person2_id:c.person1_id):null;
+        if(coParent) extra=`<span style="font-size:11px;color:var(--mu)">with ${esc(personName(coParent))}</span>`;
+      } else {
+        extra='<span style="font-size:11px;color:var(--mu)">solo</span>';
+      }
+      row.innerHTML=`<span>${esc(personName(child))}</span>${extra}
+        <button class="btn-sm" onclick="event.stopPropagation();openEditPerson('${childId}')">✏️</button>`;
+      row.addEventListener('click',()=>{closeModal('pmov');openEditPerson(childId);});
+      el.appendChild(row);
+    });
+  }
+
+  // ── SIBLINGS (computed) ────────────────────────────────
+  const sibMap=new Map(); // sibId → label
+  parents.forEach(parid=>{
+    childrenOf(parid).forEach(sibId=>{
+      if(sibId===pid) return;
+      if(sibMap.has(sibId)) return;
+      const lbl=computeSiblingLabel(pid,sibId);
+      if(lbl) sibMap.set(sibId,lbl);
+    });
+  });
+  if(sibMap.size){
+    section('Siblings (computed)','🧑‍🤝‍🧑');
+    sibMap.forEach((lbl,sibId)=>{
+      const sib=D.persons.get(sibId);
+      const row=document.createElement('div');row.className='child-row';
+      row.style.cursor='pointer';
+      row.innerHTML=`<span>${esc(personName(sib))}</span>
+        <span style="font-size:11px;color:var(--mu)">${lbl}</span>
+        <button class="btn-sm" onclick="event.stopPropagation();openEditPerson('${sibId}')">✏️</button>`;
+      row.addEventListener('click',()=>{closeModal('pmov');openEditPerson(sibId);});
+      el.appendChild(row);
+    });
+  }
+
+  // ── COUSINS (computed) ─────────────────────────────────
+  const cousinMap=new Map();
+  parents.forEach(parid=>{
+    // aunts/uncles = siblings of parent
+    const grandparents=parentsOf(parid);
+    grandparents.forEach(gp=>{
+      childrenOf(gp).forEach(auntUncleId=>{
+        if(auntUncleId===parid) return;
+        childrenOf(auntUncleId).forEach(cousinId=>{
+          if(cousinId===pid) return;
+          if(!cousinMap.has(cousinId)){
+            const lbl=computeCousinLabel(pid,cousinId);
+            if(lbl) cousinMap.set(cousinId,lbl);
+          }
+        });
+      });
+    });
+  });
+  if(cousinMap.size){
+    section('Cousins (computed)','👥');
+    cousinMap.forEach((lbl,cousinId)=>{
+      const cousin=D.persons.get(cousinId);
+      const row=document.createElement('div');row.className='child-row';
+      row.style.cursor='pointer';
+      row.innerHTML=`<span>${esc(personName(cousin))}</span>
+        <span style="font-size:11px;color:var(--mu)">${lbl}</span>
+        <button class="btn-sm" onclick="event.stopPropagation();openEditPerson('${cousinId}')">✏️</button>`;
+      row.addEventListener('click',()=>{closeModal('pmov');openEditPerson(cousinId);});
+      el.appendChild(row);
+    });
+  }
+
+  if(!couples.length&&!parents.length&&!children.length&&!sibMap.size&&!cousinMap.size){
+    noItems('No family links yet.');
+  }
+}
+
+async function removeSoloLink(pcId){
+  try{
+    await api('parent_child','DELETE',null,pcId);
+    D.parentChild.delete(pcId);
+    draw();renderPersonRelations();showToast('Link removed');
+  }catch(er){showToast('Error: '+er.message);}
+}
+
 // ═══════════════════════════════════════════════════════
-//  COUPLE MODAL
 // ═══════════════════════════════════════════════════════
 function openCoupleModal(id){
   const c=D.couples.get(id);if(!c)return;

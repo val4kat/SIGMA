@@ -9,13 +9,13 @@ define('DB_HOST', '10.db.sigmanet.lv');
 define('DB_NAME', 'c_stonekat');   // ← change this
 define('DB_USER', 'stonekat');     // ← change this
 define('DB_PASS', '2Q52K9LkYdcm');     // ← change this
-define('DB_PORT', 3306);
+define('DB_PORT', '3306');
 
 // ── OPTIONAL API KEY ─────────────────────────────────────────────
 // Set to a long random string to require callers to send
 //   X-Api-Key: <your_key>   in every request.
 // Leave empty string '' to disable authentication (local/trusted use only).
-define('API_KEY', '');
+define('API_KEY', 'MIIGTDCCBDSgAwIBAgIQOXpmzCdWNi4NqofKbqvjsTANBgkqhkiG9w0BAQwFADBf');
 
 // ── CORS & HEADERS ───────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
@@ -60,6 +60,18 @@ $body     = [];
 if (in_array($method, ['POST','PUT','PATCH'])) {
     $raw  = file_get_contents('php://input');
     $body = json_decode($raw, true) ?? [];
+}
+
+// ── METHOD OVERRIDE (tunnels PUT/DELETE through POST for restrictive servers) ──
+// JS sends: POST with header X-HTTP-Method-Override: PUT  (or body _method)
+if ($method === 'POST') {
+    $override = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']
+             ?? $body['_method']
+             ?? null;
+    if ($override && in_array(strtoupper($override), ['PUT','PATCH','DELETE'])) {
+        $method = strtoupper($override);
+        unset($body['_method']);
+    }
 }
 
 switch ($resource) {
