@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Family Tree Designer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sb:#f9f4ec; --sbb:#e2d5bf;
+  --ac:#5c3d2e;  --ach:#7a5240;
+  --tx:#3d2b1f;  --mu:#8b7355;
+  --ib:#d6c9b0;
+}
+body{font-family:'Nunito',sans-serif;display:flex;height:100vh;overflow:hidden;background:#2c2c2c}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:280px;min-width:280px;
+  background:var(--sb);border-right:2px solid var(--sbb);
+  display:flex;flex-direction:column;
+  overflow-y:auto;z-index:100;
+  box-shadow:4px 0 24px rgba(0,0,0,.28)
+}
+.sbh{padding:18px 18px 14px;background:var(--ac);color:#fdf8f0}
+.sbh h1{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600}
+.sbh p{font-size:11px;opacity:.6;margin-top:2px}
+.sbb{padding:13px;display:flex;flex-direction:column;gap:14px;flex:1}
+.sec{display:flex;flex-direction:column;gap:8px}
+.slbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--mu)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rlbl{font-size:13px;color:var(--tx);display:flex;align-items:center;gap:6px;flex:1}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+input[type=color]{width:36px;height:28px;border:1.5px solid var(--ib);border-radius:7px;cursor:pointer;padding:2px 3px;background:#fff}
+input[type=number]{width:78px;padding:5px 8px;border:1.5px solid var(--ib);border-radius:7px;font-size:13px;font-family:'Nunito',sans-serif;color:var(--tx);background:#fff;outline:none}
+input[type=number]:focus{border-color:var(--ac)}
+hr.dv{border:none;border-top:1px solid var(--sbb)}
+.btn-p{width:100%;padding:9px 12px;background:var(--ac);color:#fdf8f0;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:background .18s,transform .1s;letter-spacing:.02em}
+.btn-p:hover{background:var(--ach)}.btn-p:active{transform:scale(.98)}
+.exp-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.bexp{padding:8px 4px;border:none;border-radius:8px;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:background .18s,transform .1s;display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff}
+.bexp:active{transform:scale(.97)}
+.epng{background:#3a6b4a}.epng:hover{background:#4c8860}
+.epdf{background:#b5451b}.epdf:hover{background:#d45520}
+.eptx{background:#c84b11}.eptx:hover{background:#e0581a}
+.eico{font-size:16px}
+.leg{font-size:11.5px;color:var(--mu);line-height:1.9;background:#f0ebe0;border-radius:8px;padding:8px 11px}
+.leg div{display:flex;align-items:center;gap:6px}
+.cl-samp{height:3px;width:24px;border-radius:2px;flex-shrink:0;display:inline-block}
+
+/* ── CANVAS ── */
+#cwrap{flex:1;overflow:auto;position:relative}
+#cinner{position:relative;background:#fdf8f0}
+#lsvg{position:absolute;top:0;left:0;pointer-events:none;z-index:1}
+#lsvg path,#lsvg line,#lsvg g{pointer-events:auto}
+#lsvg text{pointer-events:none}
+
+/* ── PERSON CARDS ── */
+.pc{
+  position:absolute;background:#fff;border-radius:11px;
+  border-left:5px solid #6b7280;
+  padding:11px 13px 9px;min-width:158px;max-width:210px;
+  cursor:grab;user-select:none;
+  box-shadow:0 2px 14px rgba(0,0,0,.1),0 1px 3px rgba(0,0,0,.06);
+  z-index:10;transition:box-shadow .18s
+}
+.pc:hover{box-shadow:0 6px 22px rgba(0,0,0,.15)}
+.pc.drag{cursor:grabbing;box-shadow:0 12px 36px rgba(0,0,0,.22);z-index:50}
+.pc.cs{box-shadow:0 0 0 3px #f59e0b,0 6px 22px rgba(0,0,0,.18)}
+.pc.csp{box-shadow:0 0 0 3px #60a5fa,0 6px 22px rgba(0,0,0,.18)}
+.pc.csm{box-shadow:0 0 0 3px #db2777,0 6px 22px rgba(0,0,0,.18)}
+.pc.ctr{box-shadow:0 0 0 3px #22c55e,0 4px 16px rgba(0,0,0,.14);cursor:crosshair!important}
+.badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:1px 7px;border-radius:10px;margin-bottom:5px;color:#fff;opacity:.85}
+.pname{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#1a1a1a;line-height:1.25;word-break:break-word}
+.pmaiden{font-family:'Cormorant Garamond',serif;font-size:13px;font-style:italic;color:#888;margin-top:1px}
+.pbirth{font-size:11.5px;color:#666;margin-top:3px;font-family:'Nunito',sans-serif}
+.pbirth b{color:#333}
+.cacts{display:flex;gap:3px;margin-top:8px;padding-top:7px;border-top:1px solid #f0ebe0}
+.cb{flex:1;padding:4px 3px;font-size:13px;border:1px solid #e0d8cc;background:#fafaf8;border-radius:6px;cursor:pointer;color:#666;transition:all .13s;line-height:1;text-align:center}
+.cb:hover{background:#f0ebe0;color:#333;border-color:#ccc}
+.cbc{border-color:#93c5fd;color:#2563eb}.cbc:hover{background:#eff6ff}
+.cbw{border-color:#fbcfe8;color:#db2777}.cbw:hover{background:#fdf2f8}
+.cbd{border-color:#fca5a5;color:#dc2626}.cbd:hover{background:#fef2f2}
+
+/* ── MODALS ── */
+.mov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.mov.on{display:flex}
+.mdl{background:var(--sb);border-radius:16px;padding:26px;width:400px;box-shadow:0 24px 70px rgba(0,0,0,.35);animation:mIn .2s ease;max-height:90vh;overflow-y:auto}
+@keyframes mIn{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+.mdl h2{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--tx);margin-bottom:18px}
+.mf{margin-bottom:12px}
+.mf label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:4px}
+.mf input,.mf select,.mf textarea{width:100%;padding:8px 12px;border:1.5px solid var(--ib);border-radius:9px;font-size:14px;font-family:'Nunito',sans-serif;background:#fff;color:var(--tx);outline:none;transition:border-color .15s}
+.mf input:focus,.mf select:focus{border-color:var(--ac)}
+.mf-hint{font-size:11px;color:var(--mu);margin-top:3px}
+.mf-row{display:flex;align-items:center;gap:8px}
+.mf-row input[type=color]{flex-shrink:0}
+.mf-row .mf-txt{flex:1;padding:8px 12px;border:1.5px solid var(--ib);border-radius:9px;font-size:14px;font-family:'Nunito',sans-serif;background:#fff;color:var(--tx);outline:none}
+.chk-row{display:flex;align-items:center;gap:9px;padding:8px 12px;background:#fff;border:1.5px solid var(--ib);border-radius:9px;cursor:pointer}
+.chk-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac)}
+.chk-row span{font-size:14px;color:var(--tx)}
+.macts{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.bcnl{padding:9px 14px;background:#fff;color:var(--tx);border:1.5px solid var(--ib);border-radius:9px;font-family:'Nunito',sans-serif;font-size:14px;cursor:pointer;transition:background .15s}
+.bcnl:hover{background:#f0ebe0}
+.bdng{padding:9px 14px;background:#fef2f2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:9px;font-family:'Nunito',sans-serif;font-size:14px;cursor:pointer;font-weight:600;transition:background .15s}
+.bdng:hover{background:#fee2e2}
+.cinfo{font-size:13px;color:var(--mu);margin-bottom:14px;padding:8px 12px;background:#f0ebe0;border-radius:8px}
+
+/* ── BANNER & TOAST ── */
+#banner{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);padding:9px 18px;border-radius:22px;font-size:13px;font-weight:600;z-index:500;align-items:center;gap:12px;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+#banner.on{display:flex}
+#banner.bp{background:#1d4ed8;color:#fff}
+#banner.bm{background:#be185d;color:#fff}
+#bcx{background:rgba(255,255,255,.22);border:none;color:#fff;padding:3px 12px;border-radius:12px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:12px;font-weight:600}
+#bcx:hover{background:rgba(255,255,255,.38)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(28,28,28,.88);color:#f5f5f5;padding:9px 22px;border-radius:22px;font-size:13px;font-weight:600;pointer-events:none;opacity:0;transition:opacity .3s;z-index:600}
+#toast.on{opacity:1}
+
+/* ── SVG label styles ── */
+.conn-label-bg{fill:rgba(255,255,255,.94);rx:4}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<div id="sidebar">
+  <div class="sbh">
+    <h1>🌳 Family Tree</h1>
+    <p>Designer — drag, connect &amp; export</p>
+  </div>
+  <div class="sbb">
+
+    <div class="sec">
+      <button class="btn-p" onclick="openAddModal()">＋ Add Person</button>
+    </div>
+
+    <hr class="dv">
+
+    <!-- Canvas -->
+    <div class="sec">
+      <div class="slbl">Canvas</div>
+      <div class="row"><span class="rlbl">Background</span>
+        <input type="color" id="bg-col" value="#fdf8f0" oninput="updateBg()"></div>
+      <div class="row"><span class="rlbl">Width (px)</span>
+        <input type="number" id="cw" value="2400" min="800" max="8000" step="100" onchange="updateCanvas()"></div>
+      <div class="row"><span class="rlbl">Height (px)</span>
+        <input type="number" id="ch" value="1600" min="600" max="8000" step="100" onchange="updateCanvas()"></div>
+    </div>
+
+    <hr class="dv">
+
+    <!-- Lineage colors -->
+    <div class="sec">
+      <div class="slbl">Lineage Colors</div>
+      <div class="row"><span class="rlbl"><span class="dot" id="dp" style="background:#3b82f6"></span>Paternal</span>
+        <input type="color" id="c-paternal" value="#3b82f6" oninput="updateLineageColor('paternal')"></div>
+      <div class="row"><span class="rlbl"><span class="dot" id="dm" style="background:#ef4444"></span>Maternal</span>
+        <input type="color" id="c-maternal" value="#ef4444" oninput="updateLineageColor('maternal')"></div>
+      <div class="row"><span class="rlbl"><span class="dot" id="dn" style="background:#6b7280"></span>Neutral</span>
+        <input type="color" id="c-neutral" value="#6b7280" oninput="updateLineageColor('neutral')"></div>
+    </div>
+
+    <hr class="dv">
+
+    <!-- Line colors -->
+    <div class="sec">
+      <div class="slbl">Line Colors</div>
+      <div class="row">
+        <span class="rlbl"><span class="cl-samp" style="background:#94a3b8" id="plc-samp"></span>Parent/Child</span>
+        <input type="color" id="c-parent-line" value="#94a3b8" oninput="updateParentLineColor()">
+      </div>
+      <div style="font-size:11.5px;color:var(--mu);line-height:1.6;padding:0 2px">
+        Marriage line colors are set automatically per marriage.<br>
+        Click any marriage line to change its color.
+      </div>
+    </div>
+
+    <hr class="dv">
+
+    <!-- Legend -->
+    <div class="sec">
+      <div class="slbl">How to use</div>
+      <div class="leg">
+        <div>🖱 <b>Drag</b> cards to reposition</div>
+        <div>✏️ <b>Double-click</b> card to edit</div>
+        <div>👪 Link as <b>Parent → Child</b></div>
+        <div>💍 Link as <b>Spouses</b></div>
+        <div>🖱 <b>Click a line</b> to edit / remove</div>
+        <div>⌨️ <b>Esc</b> to cancel</div>
+      </div>
+    </div>
+
+    <hr class="dv">
+
+    <!-- Export -->
+    <div class="sec">
+      <div class="slbl">Export</div>
+      <div class="exp-grid">
+        <button class="bexp epng" onclick="exportPNG()"><span class="eico">🖼️</span>PNG</button>
+        <button class="bexp epdf" onclick="exportPDF()"><span class="eico">📄</span>PDF</button>
+        <button class="bexp eptx" onclick="exportPPTX()"><span class="eico">📊</span>PPTX</button>
+      </div>
+    </div>
+
+  </div><!-- /sbb -->
+</div>
+
+<!-- ═══════ CANVAS ═══════ -->
+<div id="cwrap">
+  <div id="cinner">
+    <svg id="lsvg"></svg>
+  </div>
+</div>
+
+<!-- ═══════ CONNECT BANNER ═══════ -->
+<div id="banner">
+  <span id="btxt">Click another person to connect</span>
+  <button id="bcx" onclick="cancelConnect()">Cancel (Esc)</button>
+</div>
+
+<!-- ═══════ TOAST ═══════ -->
+<div id="toast"></div>
+
+<!-- ═══════ PERSON MODAL ═══════ -->
+<div id="pmov" class="mov" onclick="ovClick(event,'pmov')">
+  <div class="mdl">
+    <h2 id="pm-title">Add Person</h2>
+
+    <div class="mf"><label>First Name</label>
+      <input type="text" id="f-first" placeholder="e.g. Margaret" autocomplete="off"></div>
+    <div class="mf"><label>Last Name</label>
+      <input type="text" id="f-last" placeholder="e.g. Smith" autocomplete="off"></div>
+    <div class="mf"><label>Maiden Name <span style="font-weight:400;text-transform:none;font-size:11px">(optional)</span></label>
+      <input type="text" id="f-maiden" placeholder="e.g. Johnson" autocomplete="off"></div>
+    <div class="mf">
+      <label>Date of Birth</label>
+      <input type="text" id="f-birth" placeholder="DD/MM/YYYY" maxlength="10" autocomplete="off" oninput="autoSlash(this,[2,5])">
+      <div class="mf-hint">Partial dates OK: <b>1985</b> or <b>06/1985</b> or <b>15/06/1985</b></div>
+    </div>
+    <div class="mf"><label>Lineage</label>
+      <select id="f-lin">
+        <option value="neutral">Neutral</option>
+        <option value="paternal">Paternal</option>
+        <option value="maternal">Maternal</option>
+      </select>
+    </div>
+    <div class="macts">
+      <button class="bcnl" onclick="closeModal('pmov')">Cancel</button>
+      <button class="btn-p" style="flex:1" onclick="savePerson()">Save Person</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CONNECTION MODAL ═══════ -->
+<div id="cmov" class="mov" onclick="ovClick(event,'cmov')">
+  <div class="mdl">
+    <h2>Connection</h2>
+    <div class="cinfo" id="cm-info">Person A ↔ Person B</div>
+
+    <!-- Parent-only section -->
+    <div id="cm-parent-sec">
+      <p style="font-size:13px;color:var(--mu);margin-bottom:14px">Parent → Child connection. No additional settings.</p>
+    </div>
+
+    <!-- Marriage section -->
+    <div id="cm-wed-sec" style="display:none">
+      <div class="mf">
+        <label>Line Color</label>
+        <div class="mf-row">
+          <input type="color" id="cm-color" value="#db2777" oninput="previewConnColor()">
+          <input class="mf-txt" type="text" id="cm-color-hex" placeholder="#db2777" oninput="syncColorHex()" maxlength="7">
+        </div>
+      </div>
+      <div class="mf">
+        <label>Marriage Date</label>
+        <input type="text" id="cm-mdate" placeholder="DD/MM/YYYY" maxlength="10" autocomplete="off" oninput="autoSlash(this,[2,5])">
+        <div class="mf-hint">Partial dates OK: <b>1985</b> or <b>06/1985</b> or <b>15/06/1985</b></div>
+      </div>
+      <div class="mf">
+        <label class="chk-row" style="cursor:pointer">
+          <input type="checkbox" id="cm-div" onchange="toggleDivFields()">
+          <span>Divorced</span>
+        </label>
+      </div>
+      <div id="cm-div-fields" style="display:none">
+        <div class="mf">
+          <label>Divorce Date</label>
+          <input type="text" id="cm-ddate" placeholder="DD/MM/YYYY" maxlength="10" autocomplete="off" oninput="autoSlash(this,[2,5])">
+          <div class="mf-hint">Partial dates OK: <b>2001</b> or <b>03/2001</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="macts">
+      <button class="bdng" onclick="deleteConn()">🗑 Delete</button>
+      <button class="bcnl" onclick="closeModal('cmov')">Cancel</button>
+      <button class="btn-p" style="flex:1" onclick="saveConn()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CONSTANTS
+// ═══════════════════════════════════════════
+const WED_PALETTE = [
+  '#db2777','#7c3aed','#d97706','#0891b2',
+  '#16a34a','#ea580c','#6d28d9','#0e7490'
+];
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+const S = {
+  persons: [],
+  // connection: {id,fromId,toId,type,color,marriageDate,isDivorced,divorceDate}
+  connections: [],
+  colors: {paternal:'#3b82f6',maternal:'#ef4444',neutral:'#6b7280'},
+  parentLineColor: '#94a3b8',
+  editingPersonId: null,
+  editingConnId: null,
+  connectFromId: null,
+  connectType: 'parent',
+  dragging: null,
+  uid: 1,
+};
+
+// ═══════════════════════════════════════════
+//  DOM REFS
+// ═══════════════════════════════════════════
+const wrap   = document.getElementById('cwrap');
+const inner  = document.getElementById('cinner');
+const svg    = document.getElementById('lsvg');
+const banner = document.getElementById('banner');
+const toast  = document.getElementById('toast');
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+function init() {
+  updateCanvas(); updateBg();
+  document.addEventListener('keydown', onKey);
+  wrap.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
+
+  // Demo data
+  const p0 = addPerson({firstName:'Heinrich',lastName:'Müller', maidenName:'',       birthDate:'12/03/1922',lineage:'paternal',x:900, y:120});
+  const p1 = addPerson({firstName:'Anna',    lastName:'Müller', maidenName:'Weber',   birthDate:'1926',      lineage:'maternal',x:1160,y:120});
+  const p2 = addPerson({firstName:'Karl',    lastName:'Müller', maidenName:'',        birthDate:'1955',      lineage:'paternal',x:1030,y:400});
+  const p3 = addPerson({firstName:'Elise',   lastName:'Müller', maidenName:'Braun',   birthDate:'06/1958',   lineage:'maternal',x:1260,y:400});
+
+  addConn({fromId:p0,toId:p1,type:'marriage',color:'#db2777',marriageDate:'14/06/1948',isDivorced:false,divorceDate:''});
+  addConn({fromId:p0,toId:p2,type:'parent'});
+  addConn({fromId:p1,toId:p2,type:'parent'});
+  addConn({fromId:p0,toId:p3,type:'parent'});
+  addConn({fromId:p1,toId:p3,type:'parent'});
+
+  drawLines();
+}
+
+// ═══════════════════════════════════════════
+//  CANVAS HELPERS
+// ═══════════════════════════════════════════
+function updateCanvas() {
+  const w = +document.getElementById('cw').value||2400;
+  const h = +document.getElementById('ch').value||1600;
+  inner.style.width=w+'px'; inner.style.height=h+'px';
+  svg.setAttribute('width',w); svg.setAttribute('height',h);
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+}
+function updateBg() { inner.style.background = document.getElementById('bg-col').value; }
+function updateParentLineColor() {
+  const v = document.getElementById('c-parent-line').value;
+  S.parentLineColor = v;
+  document.getElementById('plc-samp').style.background = v;
+  drawLines();
+}
+function updateLineageColor(type) {
+  const v = document.getElementById(`c-${type}`).value;
+  S.colors[type] = v;
+  document.getElementById({paternal:'dp',maternal:'dm',neutral:'dn'}[type]).style.background = v;
+  S.persons.filter(p=>p.lineage===type).forEach(p=>{
+    const c=document.getElementById('pc-'+p.id);
+    if(c){ c.style.borderLeftColor=v; const b=c.querySelector('.badge'); if(b) b.style.background=v; }
+  });
+  drawLines();
+}
+
+// ═══════════════════════════════════════════
+//  PERSONS
+// ═══════════════════════════════════════════
+function addPerson(d) {
+  const id='p'+S.uid++;
+  S.persons.push({id,...d});
+  mountCard(S.persons[S.persons.length-1]);
+  return id;
+}
+function updatePerson(id,d) {
+  const p=S.persons.find(x=>x.id===id); if(!p) return;
+  Object.assign(p,d);
+  const old=document.getElementById('pc-'+id); if(old) old.remove();
+  mountCard(p); drawLines();
+}
+function removePerson(id) {
+  if(!confirm('Remove this person and all their connections?')) return;
+  S.persons=S.persons.filter(p=>p.id!==id);
+  S.connections=S.connections.filter(c=>c.fromId!==id&&c.toId!==id);
+  const el=document.getElementById('pc-'+id); if(el) el.remove();
+  if(S.connectFromId===id) cancelConnect();
+  drawLines(); showToast('Person removed');
+}
+function lCol(lin){ return S.colors[lin]||S.colors.neutral; }
+function lLbl(lin){ return {paternal:'Paternal',maternal:'Maternal',neutral:'Neutral'}[lin]||''; }
+
+function birthHTML(bd) {
+  if(!bd) return '';
+  const parts=bd.split('/');
+  if(parts.length===3) return `${esc(parts[0])}/${esc(parts[1])}/<b>${esc(parts[2])}</b>`;
+  if(parts.length===2) return `${esc(parts[0])}/<b>${esc(parts[1])}</b>`;
+  return `<b>${esc(bd)}</b>`;
+}
+
+function mountCard(p) {
+  const div=document.createElement('div');
+  div.className='pc'; div.id='pc-'+p.id;
+  div.style.left=p.x+'px'; div.style.top=p.y+'px';
+  div.style.borderLeftColor=lCol(p.lineage);
+  const fn=[p.firstName,p.lastName].filter(Boolean).join(' ');
+  div.innerHTML=`
+    <div class="badge" style="background:${lCol(p.lineage)}">${lLbl(p.lineage)}</div>
+    <div class="pname">${esc(fn)}</div>
+    ${p.maidenName?`<div class="pmaiden">(${esc(p.maidenName)})</div>`:''}
+    ${p.birthDate?`<div class="pbirth">🗓 ${birthHTML(p.birthDate)}</div>`:''}
+    <div class="cacts">
+      <button class="cb cbc" title="Link as Parent→Child" onclick="startConnect('${p.id}','parent',event)">👪</button>
+      <button class="cb cbw" title="Link as Spouses"      onclick="startConnect('${p.id}','marriage',event)">💍</button>
+      <button class="cb"     title="Edit"                 onclick="openEditPerson('${p.id}',event)">✏️</button>
+      <button class="cb cbd" title="Delete"               onclick="removePerson('${p.id}')">🗑</button>
+    </div>`;
+  div.addEventListener('mousedown',e=>{ if(e.target.tagName==='BUTTON') return; e.preventDefault();
+    const wr=wrap.getBoundingClientRect();
+    S.dragging={id:p.id,sx:e.clientX-wr.left+wrap.scrollLeft,sy:e.clientY-wr.top+wrap.scrollTop,px:p.x,py:p.y};
+    div.classList.add('drag'); });
+  div.addEventListener('click',e=>{ if(e.target.tagName==='BUTTON') return;
+    if(S.connectFromId&&S.connectFromId!==p.id) finishConnect(p.id); });
+  div.addEventListener('dblclick',e=>{ if(e.target.tagName==='BUTTON') return; openEditPerson(p.id,e); });
+  inner.appendChild(div);
+}
+
+// ═══════════════════════════════════════════
+//  CONNECTIONS
+// ═══════════════════════════════════════════
+function addConn(d) {
+  const id='c'+S.uid++;
+  S.connections.push({id,type:'parent',color:'',marriageDate:'',isDivorced:false,divorceDate:'',...d});
+  return id;
+}
+function deleteConn() {
+  const id=S.editingConnId; if(!id) return;
+  S.connections=S.connections.filter(c=>c.id!==id);
+  closeModal('cmov'); drawLines(); showToast('Connection removed');
+}
+
+function nextWedColor(personId) {
+  const count=S.connections.filter(c=>c.type==='marriage'&&(c.fromId===personId||c.toId===personId)).length;
+  return WED_PALETTE[count%WED_PALETTE.length];
+}
+
+// ═══════════════════════════════════════════
+//  DRAW LINES
+// ═══════════════════════════════════════════
+function bezierMid(x1,y1,x2,y2) {
+  // For M x1,y1 C x1,cy x2,cy x2,y2 where cy=(y1+y2)/2, midpoint at t=0.5 is:
+  return { x:(x1+x2)/2, y:(y1+y2)/2 };
+}
+
+function svgEl(tag,attrs={}) {
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const [k,v] of Object.entries(attrs)) el.setAttribute(k,v);
+  return el;
+}
+
+function drawLines() {
+  svg.innerHTML=`<defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L0,7 L9,3.5 z" fill="${S.parentLineColor}" opacity="0.8"/>
+    </marker>
+  </defs>`;
+
+  S.connections.forEach(conn=>{
+    const from=S.persons.find(x=>x.id===conn.fromId);
+    const to=S.persons.find(x=>x.id===conn.toId);
+    if(!from||!to) return;
+    const fc=document.getElementById('pc-'+from.id);
+    const tc=document.getElementById('pc-'+to.id);
+    if(!fc||!tc) return;
+
+    const x1=from.x+fc.offsetWidth/2, y1=from.y+fc.offsetHeight/2;
+    const x2=to.x+tc.offsetWidth/2,   y2=to.y+tc.offsetHeight/2;
+    const cy=(y1+y2)/2;
+    const {x:mx,y:my}=bezierMid(x1,y1,x2,y2);
+
+    const isWed=conn.type==='marriage';
+    const col=isWed?(conn.color||'#db2777'):S.parentLineColor;
+
+    // Hit-area (invisible thicker path for easy clicking)
+    const hit=svgEl('path',{d:`M${x1},${y1} C${x1},${cy} ${x2},${cy} ${x2},${y2}`,fill:'none',stroke:'transparent','stroke-width':'14',cursor:'pointer'});
+    hit.addEventListener('click',()=>openConnModal(conn.id));
+    svg.appendChild(hit);
+
+    // Visible path
+    const path=svgEl('path',{d:`M${x1},${y1} C${x1},${cy} ${x2},${cy} ${x2},${y2}`,fill:'none',stroke:col,'stroke-width':isWed?'2.5':'2',cursor:'pointer'});
+    if(isWed) path.setAttribute('stroke-dasharray','9,5');
+    else path.setAttribute('marker-end','url(#arr)');
+    path.addEventListener('click',()=>openConnModal(conn.id));
+    svg.appendChild(path);
+
+    // Divorce X lines on path at midpoint
+    if(isWed && conn.isDivorced) {
+      const XS=8;
+      const xl1=svgEl('line',{x1:mx-XS,y1:my-XS,x2:mx+XS,y2:my+XS,stroke:col,'stroke-width':'2.5','pointer-events':'none'});
+      const xl2=svgEl('line',{x1:mx+XS,y1:my-XS,x2:mx-XS,y2:my+XS,stroke:col,'stroke-width':'2.5','pointer-events':'none'});
+      svg.appendChild(xl1); svg.appendChild(xl2);
+    }
+
+    // Label block for marriage dates
+    if(isWed && (conn.marriageDate||conn.isDivorced)) {
+      const hasMDate=!!conn.marriageDate;
+      const hasDDate=conn.isDivorced&&conn.divorceDate;
+      const lineH=15;
+      const xPad=7, yPad=4;
+
+      // Build lines array: marriageDate above, [X gap], divorceDate below
+      const lines=[];
+      if(hasMDate)  lines.push({text:'⚭ '+conn.marriageDate,  color:col,      bold:false});
+      if(conn.isDivorced) {
+        if(hasDDate) lines.push({text:'✕ '+conn.divorceDate, color:'#777',  bold:false});
+        else         lines.push({text:'✕ Divorced',          color:'#777',  bold:false});
+      }
+
+      const longestLen=Math.max(...lines.map(l=>l.text.length));
+      const bW=longestLen*6.8+xPad*2;
+      const bH=lines.length*lineH+yPad*2;
+      const bX=mx-bW/2; const bY=my-bH/2;
+
+      const bg=svgEl('rect',{x:bX,y:bY,width:bW,height:bH,fill:'rgba(255,255,255,0.93)',rx:'5',stroke:col,'stroke-width':'1',opacity:'0.95','pointer-events':'none'});
+      svg.appendChild(bg);
+
+      lines.forEach((ln,i)=>{
+        const ty=bY+yPad+lineH*(i+0.72);
+        const t=svgEl('text',{x:mx,y:ty,'text-anchor':'middle','font-family':'Nunito,sans-serif','font-size':'11.5',fill:ln.color,'pointer-events':'none'});
+        t.textContent=ln.text;
+        svg.appendChild(t);
+      });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+//  DRAG
+// ═══════════════════════════════════════════
+function onMouseMove(e) {
+  if(!S.dragging) return;
+  const wr=wrap.getBoundingClientRect();
+  const mx=e.clientX-wr.left+wrap.scrollLeft;
+  const my=e.clientY-wr.top+wrap.scrollTop;
+  const p=S.persons.find(x=>x.id===S.dragging.id); if(!p) return;
+  p.x=Math.max(0,S.dragging.px+(mx-S.dragging.sx));
+  p.y=Math.max(0,S.dragging.py+(my-S.dragging.sy));
+  const c=document.getElementById('pc-'+p.id);
+  if(c){c.style.left=p.x+'px';c.style.top=p.y+'px';}
+  drawLines();
+}
+function onMouseUp() {
+  if(!S.dragging) return;
+  const c=document.getElementById('pc-'+S.dragging.id);
+  if(c) c.classList.remove('drag');
+  S.dragging=null;
+}
+
+// ═══════════════════════════════════════════
+//  CONNECT
+// ═══════════════════════════════════════════
+function startConnect(id,type,e) {
+  e.stopPropagation(); cancelConnect(true);
+  S.connectFromId=id; S.connectType=type;
+  banner.className='on b'+(type==='marriage'?'m':'p');
+  document.getElementById('btxt').textContent=
+    type==='marriage'?'💍 Click another person to link as spouses'
+                     :'👪 Click another person to link as parent → child';
+  S.persons.forEach(p=>{
+    const c=document.getElementById('pc-'+p.id); if(!c) return;
+    c.classList.remove('cs','csp','csm','ctr');
+    if(p.id===id) c.classList.add('cs','cs'+(type==='marriage'?'m':'p'));
+    else c.classList.add('ctr');
+  });
+}
+function finishConnect(toId) {
+  const fromId=S.connectFromId, type=S.connectType;
+  if(!fromId||fromId===toId){cancelConnect();return;}
+  const dup=S.connections.some(c=>c.type===type&&
+    ((c.fromId===fromId&&c.toId===toId)||(c.fromId===toId&&c.toId===fromId)));
+  if(!dup) {
+    const color=type==='marriage'?nextWedColor(fromId):'';
+    addConn({fromId,toId,type,color,marriageDate:'',isDivorced:false,divorceDate:''});
+    drawLines();
+    showToast(type==='marriage'?'Marriage link added ♥':'Parent/Child link added');
+  } else showToast('Already connected this way');
+  cancelConnect();
+}
+function cancelConnect(silent) {
+  S.connectFromId=null; banner.className='';
+  S.persons.forEach(p=>{
+    const c=document.getElementById('pc-'+p.id);
+    if(c) c.classList.remove('cs','csp','csm','ctr');
+  });
+}
+
+// ═══════════════════════════════════════════
+//  PERSON MODAL
+// ═══════════════════════════════════════════
+function openAddModal() {
+  S.editingPersonId=null;
+  document.getElementById('pm-title').textContent='Add Person';
+  ['f-first','f-last','f-maiden','f-birth'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-lin').value='neutral';
+  showModal('pmov'); setTimeout(()=>document.getElementById('f-first').focus(),80);
+}
+function openEditPerson(id,e) {
+  if(e) e.stopPropagation();
+  const p=S.persons.find(x=>x.id===id); if(!p) return;
+  S.editingPersonId=id;
+  document.getElementById('pm-title').textContent='Edit Person';
+  document.getElementById('f-first').value=p.firstName;
+  document.getElementById('f-last').value=p.lastName;
+  document.getElementById('f-maiden').value=p.maidenName;
+  document.getElementById('f-birth').value=p.birthDate||'';
+  document.getElementById('f-lin').value=p.lineage;
+  showModal('pmov'); setTimeout(()=>document.getElementById('f-first').focus(),80);
+}
+function savePerson() {
+  const first=document.getElementById('f-first').value.trim();
+  const last=document.getElementById('f-last').value.trim();
+  const maiden=document.getElementById('f-maiden').value.trim();
+  const birth=document.getElementById('f-birth').value.trim();
+  const lin=document.getElementById('f-lin').value;
+  if(!first&&!last){document.getElementById('f-first').focus();showToast('Enter at least a name');return;}
+  if(birth&&!isValidPartialDate(birth)){document.getElementById('f-birth').focus();showToast('Date: YYYY or MM/YYYY or DD/MM/YYYY');return;}
+  if(S.editingPersonId) {
+    updatePerson(S.editingPersonId,{firstName:first,lastName:last,maidenName:maiden,birthDate:birth,lineage:lin});
+    showToast('Person updated ✓');
+  } else {
+    const cx=wrap.scrollLeft+wrap.clientWidth/2-90;
+    const cy=wrap.scrollTop+wrap.clientHeight/2-60;
+    addPerson({firstName:first,lastName:last,maidenName:maiden,birthDate:birth,lineage:lin,x:cx,y:cy});
+    drawLines(); showToast('Person added ✓');
+  }
+  closeModal('pmov');
+}
+
+// ═══════════════════════════════════════════
+//  CONNECTION MODAL
+// ═══════════════════════════════════════════
+function openConnModal(connId) {
+  const conn=S.connections.find(c=>c.id===connId); if(!conn) return;
+  S.editingConnId=connId;
+  const from=S.persons.find(p=>p.id===conn.fromId);
+  const to=S.persons.find(p=>p.id===conn.toId);
+  const fn=p=>[p.firstName,p.lastName].filter(Boolean).join(' ');
+  document.getElementById('cm-info').textContent=
+    (from?fn(from):'?')+' '+(conn.type==='marriage'?'💍':'👪')+' '+(to?fn(to):'?');
+
+  const isWed=conn.type==='marriage';
+  document.getElementById('cm-parent-sec').style.display=isWed?'none':'block';
+  document.getElementById('cm-wed-sec').style.display=isWed?'block':'none';
+
+  if(isWed){
+    const col=conn.color||'#db2777';
+    document.getElementById('cm-color').value=col;
+    document.getElementById('cm-color-hex').value=col;
+    document.getElementById('cm-mdate').value=conn.marriageDate||'';
+    document.getElementById('cm-div').checked=conn.isDivorced||false;
+    document.getElementById('cm-ddate').value=conn.divorceDate||'';
+    document.getElementById('cm-div-fields').style.display=conn.isDivorced?'block':'none';
+  }
+  showModal('cmov');
+}
+function saveConn() {
+  const conn=S.connections.find(c=>c.id===S.editingConnId); if(!conn) return;
+  if(conn.type==='marriage'){
+    const col=document.getElementById('cm-color').value;
+    const md=document.getElementById('cm-mdate').value.trim();
+    const div=document.getElementById('cm-div').checked;
+    const dd=document.getElementById('cm-ddate').value.trim();
+    if(md&&!isValidPartialDate(md)){showToast('Marriage date: YYYY or MM/YYYY or DD/MM/YYYY');return;}
+    if(dd&&!isValidPartialDate(dd)){showToast('Divorce date: YYYY or MM/YYYY or DD/MM/YYYY');return;}
+    Object.assign(conn,{color:col,marriageDate:md,isDivorced:div,divorceDate:div?dd:''});
+  }
+  closeModal('cmov'); drawLines(); showToast('Connection updated ✓');
+}
+function toggleDivFields() {
+  document.getElementById('cm-div-fields').style.display=
+    document.getElementById('cm-div').checked?'block':'none';
+}
+function previewConnColor() {
+  const v=document.getElementById('cm-color').value;
+  document.getElementById('cm-color-hex').value=v;
+}
+function syncColorHex() {
+  let v=document.getElementById('cm-color-hex').value.trim();
+  if(!v.startsWith('#')) v='#'+v;
+  if(/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById('cm-color').value=v;
+}
+
+// ═══════════════════════════════════════════
+//  MODAL HELPERS
+// ═══════════════════════════════════════════
+function showModal(id){ document.getElementById(id).classList.add('on'); }
+function closeModal(id){ document.getElementById(id).classList.remove('on'); S.editingConnId=null; S.editingPersonId=null; }
+function ovClick(e,id){ if(e.target===document.getElementById(id)) closeModal(id); }
+
+// ═══════════════════════════════════════════
+//  KEYBOARD
+// ═══════════════════════════════════════════
+function onKey(e) {
+  if(e.key==='Escape'){
+    if(document.getElementById('pmov').classList.contains('on')) closeModal('pmov');
+    else if(document.getElementById('cmov').classList.contains('on')) closeModal('cmov');
+    else if(S.connectFromId) cancelConnect();
+  }
+  if(e.key==='Enter'){
+    if(document.getElementById('pmov').classList.contains('on')&&document.activeElement.tagName!=='SELECT') savePerson();
+    if(document.getElementById('cmov').classList.contains('on')&&document.activeElement.tagName!=='SELECT') saveConn();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  DATE UTILS
+// ═══════════════════════════════════════════
+function isValidPartialDate(v) {
+  return /^\d{4}$/.test(v) ||
+         /^\d{1,2}\/\d{4}$/.test(v) ||
+         /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v);
+}
+function autoSlash(inp, positions) {
+  let raw=inp.value.replace(/[^\d]/g,'');
+  let out='';
+  const targets=positions.slice().sort((a,b)=>a-b);
+  let offset=0;
+  for(let i=0;i<raw.length;i++){
+    if(targets.includes(i+offset)&&i>0){ out+='/'; offset++; }
+    out+=raw[i];
+    if(out.length>=10) break;
+  }
+  inp.value=out;
+}
+
+// ═══════════════════════════════════════════
+//  EXPORTS  —  PNG
+// ═══════════════════════════════════════════
+async function exportPNG() {
+  if(typeof html2canvas==='undefined'){showToast('Library not loaded (needs internet)');return;}
+  showToast('Rendering PNG…');
+  try{
+    const cvs=await html2canvas(inner,{useCORS:true,scale:1.5});
+    dl(cvs.toDataURL('image/png'),'family-tree.png');
+    showToast('PNG exported ✓');
+  }catch(err){showToast('PNG failed');console.error(err);}
+}
+
+// ═══════════════════════════════════════════
+//  EXPORTS  —  PDF
+// ═══════════════════════════════════════════
+async function exportPDF() {
+  if(typeof html2canvas==='undefined'||typeof window.jspdf==='undefined'){showToast('Libraries not loaded (needs internet)');return;}
+  showToast('Rendering PDF…');
+  try{
+    const cvs=await html2canvas(inner,{useCORS:true,scale:1.5});
+    const img=cvs.toDataURL('image/png');
+    const {jsPDF}=window.jspdf;
+    const W=cvs.width,H=cvs.height;
+    const pdf=new jsPDF({orientation:W>H?'landscape':'portrait',unit:'px',format:[W,H],hotfixes:['px_scaling']});
+    pdf.addImage(img,'PNG',0,0,W,H);
+    pdf.save('family-tree.pdf');
+    showToast('PDF exported ✓');
+  }catch(err){showToast('PDF failed');console.error(err);}
+}
+
+// ═══════════════════════════════════════════
+//  EXPORTS  —  PPTX
+// ═══════════════════════════════════════════
+async function exportPPTX() {
+  if(typeof PptxGenJS==='undefined'){showToast('PptxGenJS not loaded (needs internet)');return;}
+  if(S.persons.length===0){showToast('No persons to export');return;}
+  showToast('Building PPTX…');
+  try{
+    const pptx=new PptxGenJS();
+    pptx.layout='LAYOUT_WIDE'; pptx.title='Family Tree';
+    const slide=pptx.addSlide();
+    const bgHex=(document.getElementById('bg-col').value||'#fdf8f0').replace('#','');
+    slide.background={color:bgHex};
+
+    // Bounding box
+    const CW=190,CH=120,PAD=80;
+    const xs=S.persons.map(p=>p.x), ys=S.persons.map(p=>p.y);
+    const minX=Math.min(...xs)-PAD, minY=Math.min(...ys)-PAD;
+    const maxX=Math.max(...xs)+CW+PAD, maxY=Math.max(...ys)+CH+PAD;
+    const SW=13.3,SH=7.5,PM=0.4;
+    const scale=Math.min((SW-PM*2)/(maxX-minX),(SH-PM*2)/(maxY-minY));
+    const offX=PM+((SW-PM*2)-(maxX-minX)*scale)/2;
+    const offY=PM+((SH-PM*2)-(maxY-minY)*scale)/2;
+    const sx=px=>offX+(px-minX)*scale;
+    const sy=py=>offY+(py-minY)*scale;
+    const cW=CW*scale, cH=CH*scale;
+    const fs=n=>Math.max(6,Math.min(Math.round(n),14));
+
+    // Connections
+    S.connections.forEach(conn=>{
+      const fr=S.persons.find(p=>p.id===conn.fromId);
+      const to=S.persons.find(p=>p.id===conn.toId);
+      if(!fr||!to) return;
+      const x1=sx(fr.x+CW/2),y1=sy(fr.y+CH/2);
+      const x2=sx(to.x+CW/2),y2=sy(to.y+CH/2);
+      const lx=Math.min(x1,x2),ly=Math.min(y1,y2);
+      const lw=Math.max(Math.abs(x2-x1),0.01),lh=Math.max(Math.abs(y2-y1),0.01);
+      const col=(conn.type==='marriage'?(conn.color||'#db2777'):S.parentLineColor).replace('#','');
+      slide.addShape(pptx.ShapeType.line,{x:lx,y:ly,w:lw,h:lh,
+        line:{color:col,width:conn.type==='marriage'?2:1.5,
+              dashType:conn.type==='marriage'?'dash':'solid'}});
+
+      // Marriage label
+      if(conn.type==='marriage'&&(conn.marriageDate||conn.isDivorced)){
+        const mx2=(x1+x2)/2, my2=(y1+y2)/2;
+        const parts=[];
+        if(conn.marriageDate) parts.push({text:'⚭ '+conn.marriageDate+'\n',options:{fontSize:fs(8),color:col,breakLine:true}});
+        if(conn.isDivorced){
+          const dt=conn.divorceDate?'✕ '+conn.divorceDate:'✕ Divorced';
+          parts.push({text:dt,options:{fontSize:fs(8),color:'777777'}});
+        }
+        if(conn.isDivorced){
+          slide.addShape(pptx.ShapeType.line,{x:mx2-0.08,y:my2-0.08,w:0.16,h:0.16,line:{color:col,width:1.5}});
+          slide.addShape(pptx.ShapeType.line,{x:mx2+0.08,y:my2-0.08,w:0.01,h:0.16,line:{color:col,width:0}});
+        }
+        if(parts.length)
+          slide.addText(parts,{x:mx2-0.55,y:my2-0.18,w:1.1,h:0.36,align:'center',valign:'middle',
+            margin:2,fontFace:'Calibri',
+            fill:{color:'FFFFFF'},line:{color:col,width:0.5},
+            shape:pptx.ShapeType.roundRect});
+      }
+    });
+
+    // Person boxes
+    S.persons.forEach(p=>{
+      const bx=sx(p.x),by=sy(p.y);
+      const hex=lCol(p.lineage).replace('#','');
+      // Accent bar
+      slide.addShape(pptx.ShapeType.rect,{x:bx,y:by,w:0.05,h:cH,fill:{color:hex},line:{color:hex,width:0}});
+      // Card
+      slide.addShape(pptx.ShapeType.rect,{x:bx+0.05,y:by,w:cW-0.05,h:cH,
+        fill:{color:'FFFFFF'},line:{color:'E2D5BF',width:0.5},
+        shadow:{type:'outer',color:'000000',blur:3,offset:1,angle:135,opacity:0.08}});
+      // Text
+      const fn=[p.firstName,p.lastName].filter(Boolean).join(' ');
+      const parts=[{text:fn,options:{bold:true,fontSize:fs(12),color:'1A1A1A',breakLine:true,fontFace:'Calibri'}}];
+      if(p.maidenName) parts.push({text:`(${p.maidenName})`,options:{italic:true,fontSize:fs(9),color:'777777',breakLine:true,fontFace:'Calibri'}});
+      if(p.birthDate){
+        const bp=p.birthDate.split('/');
+        if(bp.length===3){
+          parts.push({text:`${bp[0]}/${bp[1]}/`,options:{fontSize:fs(9),color:'666666',fontFace:'Calibri'}});
+          parts.push({text:bp[2],options:{bold:true,fontSize:fs(9),color:'333333',fontFace:'Calibri'}});
+        } else if(bp.length===2){
+          parts.push({text:`${bp[0]}/`,options:{fontSize:fs(9),color:'666666',fontFace:'Calibri'}});
+          parts.push({text:bp[1],options:{bold:true,fontSize:fs(9),color:'333333',fontFace:'Calibri'}});
+        } else {
+          parts.push({text:bp[0],options:{bold:true,fontSize:fs(9),color:'333333',fontFace:'Calibri'}});
+        }
+      }
+      slide.addText(parts,{x:bx+0.09,y:by+0.1,w:cW-0.18,h:cH-0.2,valign:'top',align:'left',margin:2});
+    });
+
+    // Footer
+    slide.addText('Family Tree',{x:0.2,y:SH-0.3,w:4,h:0.26,fontSize:8,color:'8B7355',fontFace:'Calibri',italic:true});
+    await pptx.writeFile({fileName:'family-tree.pptx'});
+    showToast('PPTX exported ✓');
+  }catch(err){showToast('PPTX export failed');console.error(err);}
+}
+
+// ═══════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function dl(href,name){const a=document.createElement('a');a.href=href;a.download=name;a.click();}
+let _tt;
+function showToast(msg){toast.textContent=msg;toast.classList.add('on');clearTimeout(_tt);_tt=setTimeout(()=>toast.classList.remove('on'),2400);}
+
+// ═══════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
